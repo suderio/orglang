@@ -71,7 +71,10 @@ func New(l *lexer.CustomLexer) *Parser {
 	p.registerPrefix(token.AT, p.parsePrefixExpression) // @sys
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(token.LBRACE, p.parseBlockLiteral)
+	p.registerPrefix(token.LBRACE, p.parseBlockLiteral)
 	p.registerPrefix(token.LBRACKET, p.parseListLiteral)
+	p.registerPrefix(token.TRUE, p.parseBoolean)
+	p.registerPrefix(token.FALSE, p.parseBoolean)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
@@ -168,6 +171,10 @@ func (p *Parser) parseDecimalLiteral() ast.Expression {
 
 func (p *Parser) parseStringLiteral() ast.Expression {
 	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
+}
+
+func (p *Parser) parseBoolean() ast.Expression {
+	return &ast.BooleanLiteral{Token: p.curToken, Value: p.curToken.Type == token.TRUE}
 }
 
 func (p *Parser) parsePrefixExpression() ast.Expression {
@@ -317,6 +324,7 @@ func (p *Parser) parseBlockLiteralInfix(left ast.Expression) ast.Expression {
 
 func (p *Parser) parseListLiteral() ast.Expression {
 	lit := &ast.ListLiteral{Token: p.curToken}
+	lit.Elements = []ast.Expression{}
 
 	// [ ]
 	if p.peekTokenIs(token.RBRACKET) {
@@ -326,8 +334,19 @@ func (p *Parser) parseListLiteral() ast.Expression {
 
 	p.nextToken() // valid start of expression
 
-	// Parse list content as a single expression (if comma is operator, it handles list-ness)
-	lit.Content = p.parseExpression(LOWEST)
+	// First element
+	lit.Elements = append(lit.Elements, p.parseExpression(LOWEST))
+
+	// Loop until ]
+	for !p.peekTokenIs(token.RBRACKET) && p.curToken.Type != token.EOF {
+		// Assume space separator or comma (optional)
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+		}
+
+		p.nextToken()
+		lit.Elements = append(lit.Elements, p.parseExpression(LOWEST))
+	}
 
 	if !p.expectPeek(token.RBRACKET) {
 		return nil

@@ -165,8 +165,8 @@ func (ge *GroupExpression) String() string {
 }
 
 type ListLiteral struct {
-	Token   token.Token // '['
-	Content Expression  // The expression inside [ ... ]
+	Token    token.Token  // '['
+	Elements []Expression // Changed from Content to Elements
 }
 
 func (ll *ListLiteral) expressionNode()      {}
@@ -174,8 +174,11 @@ func (ll *ListLiteral) TokenLiteral() string { return ll.Token.Literal }
 func (ll *ListLiteral) String() string {
 	var out bytes.Buffer
 	out.WriteString("[")
-	if ll.Content != nil {
-		out.WriteString(ll.Content.String())
+	for i, el := range ll.Elements {
+		out.WriteString(el.String())
+		if i < len(ll.Elements)-1 {
+			out.WriteString(" ")
+		}
 	}
 	out.WriteString("]")
 	return out.String()

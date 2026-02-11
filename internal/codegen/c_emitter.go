@@ -132,7 +132,21 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 		return "NULL /* Block not implemented */", nil
 
 	case *ast.ListLiteral:
-		return "NULL /* List not implemented */", nil
+		var argBuilder strings.Builder
+		count := len(e.Elements)
+		for _, el := range e.Elements {
+			val, err := c.emitExpression(el)
+			if err != nil {
+				return "", err
+			}
+			argBuilder.WriteString(", ")
+			argBuilder.WriteString(val)
+		}
+		// e.g. org_list_make(arena, 3, a, b, c)
+		return fmt.Sprintf("org_list_make(arena, %d%s)", count, argBuilder.String()), nil
+
+	case *ast.GroupExpression:
+		return c.emitExpression(e.Expression)
 
 	case *ast.Identifier:
 		return e.Value, nil
