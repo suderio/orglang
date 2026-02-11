@@ -32,7 +32,7 @@ logic, table manipulation, and more.
 -   Extreme orthogonality of the basic operators. For instance,
     `[0] + [0 0] = 3` (uses the size of the Table). `"Hello" - 1 = 4`.
 -   Spaces are used to separate tokens. Some Symbols can be used
-    without spaces, such as `@`, `!{`, `!}`, `:` (and other assignments), `.`,
+    without spaces, such as `@`, `:` (and other assignments), `.`,
     `(` , `)` , `[` , `]` , `{` , `}` and `,`. Therefore, they cannot be used
     in identifiers. Identifiers can contain letters, numbers, and underscores
     and any other symbol.
@@ -192,7 +192,7 @@ library\'.
   `-<>`           Join Map                  `[1 2 3] -<> sum`              
   `o`             Compose                   `g o f`                        
   `|>`            Partial application       `add1: 1 |> +`
-  `!{, !}`        Left/Right Binding Power  `!501{right - left}502!`
+  `N{, }N`        Left/Right Binding Power  `501{right - left}502`
 
 ### Precedence Table
 
@@ -212,13 +212,13 @@ Here is the definitive binding power table for **OrgLang**.
 | `\|>` | Left Injector (Anchor) | 40 | 41 |
 | `->`, `-<`, `-<>` | Flow / Dispatch / Join | 50 | 51 | Left |
 | **(Default)** | **User Defined Operators** | **100** | **101** | **Left** |
-| `==`, `!=`, `<`, `>` | Comparisons | 150 | 151 | Left |
+| `==`, `~=`, `<`, `>` | Comparisons | 150 | 151 | Left |
 | `+`, `-` | Addition / Subtraction | 200 | 201 | Left |
 | `*`, `/` | Mult / Division | 300 | 301 | Left |
 | `o` | Composition | 400 | 401 | Left |
 | `^` | Exponentiation | 501 | 500 | **Right** |
 | `.` | Evaluative Lookup | 800 | 801 | Left |
-| `!`, `@`, `-` | Unary (Prefix) | 0 | 900 | N/A (High) |
+| `~`, `@`, `-` | Unary (Prefix) | 0 | 900 | N/A (High) |
 
 ### Key Design Decisions:
 
@@ -239,7 +239,7 @@ As we discussed, a user can override these defaults using the slot notation with
 
 ```orglang
 // Defining a custom operator with high precedence
-# : !700{ left ** right }700!;
+# : 700{ left ** right }700;
 
 ```
 
@@ -288,6 +288,7 @@ Logical operators always return a Boolean.
   `&`        Bitwise AND         `x & y`
   `|`        Bitwise OR          `x | y`
   `^`        Bitwise XOR         `x ^ y`
+  `~`        NOT                 `~x`
 
 ### Comparison
 

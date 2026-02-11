@@ -35,6 +35,7 @@ func OperatorBindingPowers() map[token.TokenType]OperatorPower {
 	ops[token.LPAREN] = OperatorPower{Infix: bp(CALL, CALL), Prefix: bp(0, LOWEST)} // Grouped vs Call
 	ops[token.DOT] = OperatorPower{Infix: bp(CALL, CALL)}
 	ops[token.LBRACE] = OperatorPower{Infix: bp(CALL, CALL), Prefix: bp(0, LOWEST)} // Block
+	ops[token.ARROW] = OperatorPower{Infix: bp(LESSGREATER, LESSGREATER)}           // -> Flow
 
 	// Mixed Operators (Prefix and Infix)
 	ops[token.MINUS] = OperatorPower{

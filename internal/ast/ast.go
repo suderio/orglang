@@ -210,3 +210,36 @@ func (bl *BlockLiteral) String() string {
 	}
 	return out.String()
 }
+
+type CallExpression struct {
+	Token     token.Token // The '(' token
+	Function  Expression  // Identifier or FunctionLiteral
+	Arguments []Expression
+}
+
+func (ce *CallExpression) expressionNode()      {}
+func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *CallExpression) String() string {
+	var out bytes.Buffer
+
+	args := []string{}
+	for _, a := range ce.Arguments {
+		args = append(args, a.String())
+	}
+
+	out.WriteString(ce.Function.String())
+	out.WriteString("(")
+	// arguments separated by comma?
+	// Spec: "f x, y" or "f(x, y)"?
+	// If parser uses comma, we join by comma.
+	// We will implement parser to use comma.
+	for i, arg := range args {
+		out.WriteString(arg)
+		if i < len(args)-1 {
+			out.WriteString(", ")
+		}
+	}
+	out.WriteString(")")
+
+	return out.String()
+}
