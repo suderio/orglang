@@ -1,0 +1,29 @@
+# 04_flow.org
+# Flow control and Error handling
+
+# The '?' operator (Test)
+# (1 = 0) ? returns true if not zero, empty or false.
+check_positive : { (right > 0) ? };
+valid : check_positive 10; # true
+invalid : check_positive -5; # false
+
+# The '??' operator (Error Coalescing)
+# Returns left if not Error, else right.
+safe_val : invalid ?? 0; # false
+
+# The '?:' operator (Elvis)
+# Returns left if "truthy" (not false, not empty, not zero), else right.
+# Usage for default values.
+zero : 0;
+default_val : zero ?: 100; # 100 (since 0 is falsy)
+# null_val : Error; # This should now compile!!!
+null_val : 1 / (1 - 1); # Error. This should now compile!!!
+fallback : null_val ?: "default"; # "default"
+
+# Flow control with Arrays and Broadcast
+# [1 2 3] -> check_positive
+# If check_positive returns Error for some elements, how does the list behave?
+# 
+list : [1 -2 3 -4];
+# processed : list -> check_positive; 
+# Result might be [true false true false]

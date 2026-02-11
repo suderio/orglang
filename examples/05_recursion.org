@@ -1,0 +1,19 @@
+# 05_recursion.org
+# Recursion using 'this'
+
+# Factorial
+# 'this' refers to the current operator/function
+factorial : {
+    [true: 1 false: (right * this(right - 1))].(right <= 1)
+};
+
+res1 : factorial 5; # 120
+
+# Fibonacci
+# fib(n) = fib(n-1) + fib(n-2)
+fib : {
+    [true: 1 false: (this (right - 1) + this (right - 2))].(right <= 1); 
+};
+
+res2 : fib 10; # 55
+

@@ -1,0 +1,29 @@
+# 06_advanced.org
+# Pipelines, Binding Power, and Resources
+
+# Pipelines with |> (Inject Left)
+# '10 |> add' creates a function that adds 10 to its argument
+add : { left + right };
+add_10 : 10 |> add;
+res1 : add_10 5; # 15
+
+# Pipeline flow
+# data -> process
+# "Hello" -> print
+msg : "HelloOrg" -> @stdout;
+
+# Custom Binding Power (if parser supports it)
+# Defining a high-precedence exponentiation-like operator
+# Syntax from lang.md: !700{ left ** right }700!
+# assuming ** is pow
+pow_op : !600{ left ** right }601!;
+
+res2 : 2 pow_op 3 * 2; 
+# With precedence 600, this should bind tighter than * (300)
+# (2^3) * 2 = 8 * 2 = 16
+# If it had lower precedence (e.g. 200), it would be 2^(3*2) = 2^6 = 64
+
+# Associativity test
+# Right associative due to RBP > LBP (601 > 600)
+res3 : 2 pow_op 3 pow_op 2;
+# 2 ^ (3 ^ 2) = 2 ^ 9 = 512

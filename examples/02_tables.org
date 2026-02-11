@@ -1,0 +1,42 @@
+# 02_tables.org
+# Table construction and manipulation
+
+# Basic list
+list : [1 2 3 4 5];
+
+# Accessing elements (0-indexed)
+first : list.0;   # 1
+third : list.2;   # 3
+
+# Key-Value pairs
+person : [
+    "name": "Alice"
+    "age": 30
+    "city": "Wonderland"
+];
+
+# Accessing by key
+name : person.name; # "Alice"
+age : person.age;   # 30
+
+# Mutability
+# Updating an existing key
+person.age : 31;
+
+# Adding a new key (assuming this is allowed for mutable map-like tables)
+person.job : "Adventurer";
+
+# Nested tables
+matrix : [
+    [1 2 3]
+    [4 5 6]
+    [7 8 9]
+];
+
+center : matrix.1.1; # 5
+
+# Concatenation
+# Merging lists
+list1 : [1 2];
+list2 : [3 4];
+combined : list1, list2; # [1 2 [3 4]] ? Needs verification of ',' behavior.

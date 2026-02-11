@@ -1,0 +1,28 @@
+# 03_functions.org
+# Function definitions and usage
+
+# Unary operator (acts on 'right')
+increment : { right + 1 };
+res1 : increment 5; # 6
+
+# Binary operator (acts on 'left' and 'right')
+add : { left + right };
+res2 : 10 add 20; # 30
+
+# Using valid identifiers for math-like functions
+# (Since identifiers can contain almost any symbol)
+plus! : { left + right };
+res3 : 5 plus! 5; # 10
+
+# Composition
+# h = g o f
+# res = h x  == g(f(x))
+double : { right * 2 };
+inc_then_double : double o increment;
+res4 : inc_then_double 3; # (3 + 1) * 2 = 8
+
+# Partial Application
+# |> injects left argument
+# add_five becomes a unary function that adds 5 to its right argument
+add_five : 5 |> add;
+res5 : add_five 10; # 15

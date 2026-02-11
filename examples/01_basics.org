@@ -1,0 +1,32 @@
+# 01_basics.org
+# Basic arithmetic and variable assignment
+
+# Integers
+a : 10;
+b : 20;
+sum : a + b;      # 30
+diff : b - a;     # 10
+prod : a * b;     # 200
+quot : b / a;     # 2
+mod : b % 3;      # 2
+pow : 2 ** 3;     # 8
+
+# Decimals
+pi : 3.14159;
+r : 2.0;
+area : pi * (r ** 2);
+
+# Rationals
+half : 1/2;
+quarter : 1/4;
+three_quarters : half + quarter; # 3/4
+
+# Strings
+greeting : "Hello, ";
+target : "World!";
+msg_interp : "$0$1" $ [greeting target];
+
+# Booleans
+is_equal : a = 10;       # true
+is_greater : b > a;      # true
+is_both : is_equal && is_greater; # true
