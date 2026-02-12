@@ -21,4 +21,13 @@ release: clean
 
 # Build the binary locally
 build:
-    go build -o org ./cmd/org
+	go build -o org ./cmd/org
+
+# Build Reference PDF (requires pandoc and wkhtmltopdf/weasyprint)
+pdf:
+    @echo "🎨 Renderizando PDF com WeasyPrint e CSS..."
+    pandoc reference.md -o reference.pdf --css assets/style.css --pdf-engine=weasyprint --embed-resources --standalone --toc --metadata title="OrgLang Reference"
+    @echo "✨ PDF gerado"
+
+view: pdf
+    xdg-open "reference.pdf"

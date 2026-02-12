@@ -10,8 +10,11 @@ Lexical analysis is the first stage of the OrgLang compiler. An OrgLang program 
 
 The lexer (or tokenizer) performs this transformation by scanning the source text from beginning to end. It identifies various types of tokens:
 - **Identifiers and Keywords**: Symbolic names for variables and functions.
+
 - **Literals**: Constant values such as numbers and strings.
+
 - **Operators**: Symbols representing computations or flows.
+
 - **Delimiters**: Structural symbols like parentheses and semicolons.
 
 ### Character encoding
@@ -25,13 +28,15 @@ OrgLang source files are expected to be encoded in **UTF-8**. While the current 
 OrgLang supports two types of comments: single-line and multiline (block) comments.
 
 **Single-line comments** start with the hash character (`#`) and extend to the end of the line. They are ignored by the compiler.
+
 ```rust
 # This is a single-line comment
 x : 42; # Comment after an expression
 ```
 
-**Multiline comments** (also known as block comments) are enclosed in three consecutive hash characters (`###`). 
-> [!IMPORTANT]
+**Multiline comments** (also known as block comments) are enclosed in three consecutive hash characters (`###`).
+
+> [WARNING]
 > The multiline comment marker `###` must start at the first column of the line.
 
 Everything between the opening and closing `###` markers is treated as a comment and ignored.
@@ -51,6 +56,7 @@ A line that contains only whitespace (spaces, tabs, and form feeds) is considere
 Unlike some other languages (like Python), indentation in OrgLang is generally not semantically significant. It is used primarily for readability and to reflect the structural hierarchy of nested blocks (e.g., inside `{}` or `[]`).
 
 However, there are specific lexical rules where column position matters:
+
 - The multiline comment marker `###` **must** start in the first column of the line.
 
 #### Whitespace between tokens
@@ -58,7 +64,9 @@ However, there are specific lexical rules where column position matters:
 Whitespace (spaces, tabs, and newlines) is used to separate tokens that would otherwise be joined. For example, `x : 42` requires whitespace around `:` if it were part of a larger word, but since `:` is a special symbol, it can often be used without spaces (e.g., `x:42`).
 
 Certain symbols can be used without surrounding whitespace as they are recognized as distinct delimiters:
+
 - `@`, `:`, `.`, `,`
+
 - `(`, `)`, `[`, `]`, `{`, `}`
 
 While not strictly required for these symbols, using whitespace is encouraged for visual clarity.
@@ -70,25 +78,32 @@ While not strictly required for these symbols, using whitespace is encouraged fo
 Identifiers (also referred to as names) are used to name variables, functions, and resources. In OrgLang, identifiers have a very flexible structure, allowing many symbols that are typically reserved for operators in other languages.
 
 An identifier must start with a letter (case-sensitive `a-z` or `A-Z`), an underscore (`_`), or any of the following symbols:
+
 - `!`, `$`, `%`, `&`, `*`, `-`, `+`, `=`, `^`, `~`, `?`, `/`, `<`, `>`, `|`
 
 After the first character, an identifier can contain any combination of letters, underscores, digits (`0-9`), and the symbols listed above.
 
 However, identifiers **cannot** contain the following structural delimiters:
+
 - `@`, `:`, `.`, `,`, `;`, `(`, `)`, `[`, `]`, `{`, `}`
 
 **Examples of valid identifiers:**
 - `variable_name`
+
 - `isValid?`
+
 - `++count`
+
 - `>>`
+
 - `my-module`
+
 - `$price`
 
 **Restricted Names:**
 Identifiers that match any of the language's [Keywords](#keywords) are reserved and cannot be used as variable names.
 
-> [!NOTE]
+> [NOTE]
 > Since digits are allowed in identifiers but an identifier cannot *start* with a digit, the lexer can easily distinguish between numeric literals and names. For example, `42x` is not a valid identifier, but `x42` is.
 
 #### Keywords
@@ -96,10 +111,15 @@ Identifiers that match any of the language's [Keywords](#keywords) are reserved 
 The following identifiers are reserved as keywords and have special meaning in the OrgLang language. They cannot be used as ordinary identifiers:
 
 - `true`: Boolean truth value.
+
 - `false`: Boolean falsehood value.
+
 - `resource`: Used in resource definitions.
+
 - `this`: Refers to the current function or block (used for recursion).
+
 - `left`: Predefined name for the left operand in a binary operator.
+
 - `right`: Predefined name for the right operand (or the operand of a prefix operator).
 
 #### Reserved classes of identifiers
@@ -130,7 +150,7 @@ doc : """
 """;
 ```
 
-> [!NOTE]
+> [NOTE]
 > Leading and trailing blank lines (usually surrounding the delimiters) are also stripped.
 
 ##### Strings as Tables
@@ -155,7 +175,7 @@ To join strings, use interpolation or specialized table operations (to be define
 
 In OrgLang, all first-class numeric literals (integers and decimals) are designed to be implemented with **arbitrary precision**. This means that, by default, numbers are not limited by the standard 32-bit or 64-bit constraints of the underlying hardware, allowing for exact computations with very large or very precise values.
 
-> [!NOTE]
+> [NOTE]
 > While the language semantics favor arbitrary precision, future versions of the compiler will introduce support for specific machine types (like `int`, `long`, `float`, `double`) as internal optimizations. These will be used when the compiler can prove that the range and precision requirements are satisfied by the more efficient machine representations.
 
 #### Integer literals
@@ -165,10 +185,11 @@ Integer literals are represented as a sequence of one or more digits (`0-9`).
 ##### Signed Integer Literals
 An integer literal can be preceded by an optional sign character (`+` or `-`). 
 
-> [!IMPORTANT]
+> [WARNING]
 > To be treated as a single numeric literal, there **must not** be any whitespace between the sign and the digits. 
 
 - `-42`: A single integer literal token with value negative 42.
+
 - `- 42`: Two tokens: the unary negation operator `-` followed by the integer literal `42`.
 
 While the external behavior might often be similar, the distinction is important for the binding power of operators and lexer-level identification of values.
@@ -221,6 +242,7 @@ Tables (also referred to as Lists) are the primary data structure in OrgLang. Th
 A table can be constructed in two ways that produce the same semantic object:
 
 1.  **Blocks (`[]`)**: Square brackets group a sequence of statements or expressions into a Table. Elements are typically separated by whitespace.
+
 2.  **The Comma Operator (`,`)**: The comma is a binary operator that creates or extends a Table. 
 
 Because `[]` evaluates its contents and collects the results into a new Table, using commas inside brackets results in **nesting**.
@@ -279,7 +301,9 @@ OrgLang operators are strictly **unary** (prefix) or **binary** (infix). This st
 The limitation to unary and binary forms (maximum of two operands) may seem restrictive compared to the variety of arities found in other languages. However, OrgLang overcomes this through several powerful patterns:
 
 - **Tables as Parameters**: To pass multiple values to an operation that only accepts one operand (like a unary function call), those values are grouped into a [Table literal](#table-literals). The operation then extracts exactly what it needs from the table.
+
 - **Currying**: Binary operators can be used to "partially apply" data. An expression like `a op b` can return a new thunk or function that is "ready" to take more data later.
+
 - **Abstractions**: Simple operators can be composed and bound to names, creating high-level abstractions that behave like complex built-in features in other languages.
 
 By embracing these patterns, OrgLang achieves a high degree of expressiveness while maintaining a structurally simple core.
@@ -297,7 +321,7 @@ Arithmetic operators perform standard mathematical calculations. In OrgLang, the
 | `/` | Division | Binary | Returns the quotient of two numbers. |
 | `**` | Power | Binary | Returns the left operand raised to the power of the right operand (Right-associative). |
 
-> [!NOTE]
+> [NOTE]
 > **Implicit Coercion**: Any arithmetic operator can be applied to [Table literals](#table-literals) and [Strings](#string-literals), in which case their **size** is used as the numeric value. Additionally, [Boolean literals](#boolean-literals) are coerced to numbers: `true` is treated as `1`, and `false` as `0`.
 
 #### Bitwise operators
@@ -305,10 +329,15 @@ Arithmetic operators perform standard mathematical calculations. In OrgLang, the
 OrgLang supports standard bitwise operations for integers:
 
 -   `&`: Bitwise AND
+
 -   `|`: Bitwise OR
+
 -   `^`: Bitwise XOR
+
 -   `~`: Bitwise NOT (Prefix)
+
 -   `<<`: Left Shift
+
 -   `>>`: Right Shift
 
 Example:
@@ -334,10 +363,10 @@ Comparison operators compare two values and always return a [Boolean literal](#b
 | `>` | Greater than | `x > y` |
 | `>=` | Greater than or equal to | `x >= y` |
 
-> [!NOTE]
+> [NOTE]
 > **Implicit Coercion**: Comparison operators follow the same coercion rules as [Arithmetic operators](#arithmetic-operators): Tables and Strings use their size, and Booleans are treated as `1` (`true`) or `0` (`false`).
 
-> [!IMPORTANT]
+> [WARNING]
 > **Comparison Chaining**: Since every comparison returns a Boolean, the result of a chain (e.g., `x < y < z`) is the result of the **last comparison** in the chain. This differs from languages where such a chain might be shorthand for `(x < y) && (y < z)`.
 
 #### Boolean operators
@@ -354,7 +383,7 @@ Boolean operators are used to perform logical calculations.
 | `\|` | Logical OR | Binary | **Non-short-circuit** logical OR. |
 | `^` | Logical XOR | Binary | Returns `true` if exactly one of the operands is `true`. |
 
-> [!NOTE]
+> [NOTE]
 > **Truthiness**: Boolean operators can be applied to [Table literals](#table-literals) and [Strings](#string-literals). They follow a "size-based" truthiness rule: a size of `0` is treated as `false`, and every other value (size `> 0`) is treated as `true`.
 
 #### Conditional operators
@@ -384,6 +413,7 @@ The prefix `@` operator is used to instantiate a resource. When applied to a res
 The binary `->` operator drives data from a source (left operand) to a sink (right operand).
 
 - **Source -> Sink**: Drives all data from the source into the sink until completion.
+
 - **Iterator -> Function**: Creates a new projection (map) that will process elements lazily.
 
 ```rust
@@ -399,6 +429,7 @@ The binary `->` operator drives data from a source (left operand) to a sink (rig
 The binary `-<` operator performs a balanced dispatch of data. It sends each element from the left source to exactly **one** of the available sinks in the Table on the right side, typically using a round-robin or load-balancing strategy.
 
 - **Load Balancing**: If the right operand is a Table of sinks, elements are distributed among them.
+
 - **Degeneration to `->`**: If the right operand contains only one sink, it behaves identically to the basic data flow operator (`->`).
 
 ```rust
@@ -411,6 +442,7 @@ The binary `-<` operator performs a balanced dispatch of data. It sends each ele
 The binary `-<>` operator acts as a synchronizing barrier. It is used to merge multiple data streams into a single flow of coordinated packets.
 
 - **Synchronization**: It waits for **every source** in the left Table to produce at least one element.
+
 - **Aggregation**: Once one element is received from each source, it combines them into a single Table and sends that Table as a single "pulse" to the right operand.
 
 ```rust
@@ -426,7 +458,7 @@ In OrgLang, assignment is strictly an operation that binds a value to a name wit
 | :--- | :--- | :--- |
 | `:` | Binding | Binds the result of the right expression to the name specified on the left. |
 
-> [!NOTE]
+> [NOTE]
 > **Extended Assignment**: OrgLang reserves the following operators for extended assignment (modification of existing bindings). These are **not yet implemented** in the current runtime.
 
 | Operator | Description | Example |
@@ -462,7 +494,7 @@ When an operator is called, the expression within the braces is evaluated. The o
 - **`right`**: The right operand (for binary operators) or the single operand (for unary operators).
 - **`this`**: A reference to the operator function itself (useful for recursion).
 
-> [!IMPORTANT]
+> [WARNING]
 > **Strict Binding Power Syntax**: When defining custom binding powers, there **must not be any whitespace** between the number and the brace.
 > - **Correct**: `op : 50{ ... }60;`
 > - **Incorrect**: `op : 50 { ... } 60;`
@@ -476,6 +508,7 @@ OrgLang provides higher-order operators that allow for the functional constructi
 The binary `o` operator performs **Functional Composition**. it merges two operators into a single, unified transformation.
 
 - **Sequence**: In the expression `h : g o f`, the output of the right operator (`f`) becomes the input of the left operator (`g`).
+
 - **Optimization**: The runtime attempts to fuse these operations into a single execution step to minimize intermediate overhead.
 
 **Arity-based Composition Rules (`h : g o f`):**
@@ -483,8 +516,11 @@ The binary `o` operator performs **Functional Composition**. it merges two opera
 The behavior of the composed operator `h` depends on the arity of `g` and `f`. The general rule is that the result of `f` always populates the `right` slot of `g`, and if `g` is binary, it retains the original `left` operand.
 
 - **Unary `g` o Binary `f`**: `h` is a binary operator. `h(left, right)` evaluates as `g(f(left, right))`.
+
 - **Binary `g` o Unary `f`**: `h` is a binary operator. `h(left, right)` evaluates as `g(left, f(right))`. This effectively uses `f` to pre-process the "main" argument while preserving the context in `left`.
+
 - **Binary `g` o Binary `f`**: `h` is a binary operator. `h(left, right)` evaluates as `g(left, f(left, right))`.
+
 - **Unary `g` o Unary `f`**: `h` is a unary operator. `h(right)` evaluates as `g(f(right))`.
 
 ```rust
@@ -501,6 +537,7 @@ result : inc_and_double 5; # 12
 The binary `|>` operator, also known as the **Left Injector**, performs **Partial Application**. It "anchors" a value into the `left` slot of an operator, returning a new unary operator.
 
 - **Specialization**: It allows you to create specialized versions of binary operators by fixing one of the operands.
+
 - **Left Binding**: The value on the left of `|>` is bound to the `left` parameter of the operator on the right.
 
 ```rust
@@ -563,9 +600,13 @@ Because OrgLang is built on a late-binding, lazy evaluation model, any piece of 
 
 #### Extreme Orthogonality
 A hallmark of OrgLang values is their predictable behavior across different operators. For instance, the addition operator `+` is defined for all types:
+
 - Adding two Numbers produces their sum.
+
 - Adding a Table to a Number uses the Table's size.
+
 - Adding two Tables returns the sum of their sizes.
+
 This consistency reduces the need for "special cases" and allows for highly generic code.
 
 ### The standard type hierarchy
@@ -653,6 +694,7 @@ Arithmetic expressions in OrgLang are designed to be highly predictable and perm
 When an arithmetic operator is applied to a non-numeric type, it is automatically coerced into a Number before the operation is performed:
 
 - **Tables and Strings**: Coerced to their **size** (the number of elements or characters).
+
 - **Booleans**: Coerced to `1` for `true` and `0` for `false`.
 
 ```rust
@@ -666,6 +708,7 @@ true + true;      # 1 + 1 = 2
 OrgLang handles division between Integers with special care to maintain precision without prematurely forcing floating-point representation.
 
 - **Exact Division**: If one Integer divides another perfectly with no remainder, the result is an **Integer**.
+
 - **Inexact Division**: If there is a remainder, the result is a **Rational**.
 
 ```rust
@@ -675,7 +718,9 @@ result2 : 3 / 2; # result2 is Rational 3/2
 
 #### Numeric Promotion
 When operations involve different numeric subtypes, the result is promoted to the most general type:
+
 - Operations involving a **Decimal** typically produce a **Decimal**.
+
 - Operations involving a **Rational** and an **Integer** typically produce a **Rational**.
 
 ### Atoms
@@ -687,16 +732,22 @@ In the Lisp tradition, **Atoms** are the fundamental, indivisible building block
 OrgLang uses whitespace (spaces, tabs, newlines) to separate tokens. The rules for where space is required, optional, or forbidden are critical to distinguishing between atoms and operators.
 
 - **Mandatory Spaces**: Space is required to separate two atoms that would otherwise merge into a single identifier (e.g., `x y` is two names, `xy` is one).
+
 - **Optional Spaces**: Spaces are optional around delimiters (`( )`, `[ ]`, `{ }`, `,`, `;`) and structural operators (`.`, `:`, `@`, `->`). For example, `(1+1)` is equivalent to `(1 + 1)`.
+
 - **Forbidden Spaces**:
     - **Signed Numbers**: There must be **no space** between a leading sign and the digits for it to be parsed as a negative or positive number atom (e.g., `-1` is a Number, `- 1` is the unary negation operator applied to `1`).
+
     - **Binding Power**: There must be **no space** between an integer and the braces when defining custom binding powers (e.g., `700{ ... }701`).
 
 #### Names (Identifiers)
 
 Names are tokens used to refer to bindings in a Table.
+
 - **Characters**: Names can contain letters, digits, underscores, and most symbols (e.g., `isValid?`, `counter_1`, `set!`).
+
 - **Start Rule**: A name cannot start with a digit (which would initiate a Number).
+
 - **Exclusions**: Symbols used as delimiters or structural operators (`( )`, `[ ]`, `{ }`, `,`, `.`, `:`, `@`, `;`) cannot be part of a name.
 
 #### Literals
@@ -714,8 +765,11 @@ The keywords `true` and `false` are the only two Boolean atoms.
 
 ##### Strings
 Strings are represented by text enclosed in double quotes:
+
 - **Simple**: `"Single line string"`.
+
 - **Multiline**: `"""Triple quotes for multiline text"""`.
+
 Strings are semantically **Tables** where each character is a value indexed by its position.
 
 #### Atoms in Tables
@@ -725,6 +779,7 @@ One of the most important aspects of Atoms in OrgLang is how they interact with 
 Because spaces are also used to separate atoms within an expression (like `1 + 1`), the use of space inside a Table literal can be ambiguous. In OrgLang, the **space in a Table literal acts as an element separator**, effectively terminating the current expression.
 
 - **Atomic Gathering**: Within `[ ]`, the runtime treats each space-separated sequence as a distinct element if not explicitly grouped.
+
 - **Binding Greediness**: The binding operator `:` inside a Table literal is "greedy" and attaches the name on its left to the immediate next atom on its right. It does not automatically consume subsequent atoms if they are separated by spaces.
 
 ```rust
@@ -749,8 +804,11 @@ Parentheses `( )` are used to group expressions to override precedence. A parent
 The atomic model of OrgLang provides a unique balance of simplicity and expressive power:
 
 - **Advantage: Extreme Orthogonality**: Because every atom (even Operators and Errors) is a first-class Value, the language's core operators work consistently across all data types.
+
 - **Advantage: Structural Purity**: Every source file is semantically a Table literal, making the relationship between code and data perfectly transparent.
+
 - **Limitation: Lexical Sensitivity**: The reliance on space as an element separator in Tables means developers must be mindful of grouping when mixing spaces and operators.
+
 - **Limitation: Precedence Quirks**: Some operators, like unary negation, have lower precedence than exponentiation (`-1**2 = -1`), which preserves mathematical convention but may surprise users coming from languages where unary operators are always highest.
 
 ### Unary arithmetic and bitwise operations
@@ -759,24 +817,34 @@ Unary operators in OrgLang are prefix operators that associate with the immediat
 
 #### Negation (`-`)
 The unary negation operator reverses the sign of a numeric value.
+
 - **Integers**: Returns a negative or positive Integer.
+
 - **Decimals**: Returns a Decimal with the sign reversed.
+
 - **Precedence Note**: Unary negation has **lower precedence** than exponentiation. This means `-1**2` is evaluated as `-(1**2)`, resulting in `-1`, which aligns with standard mathematical notation.
 
 #### Increment and Decrement (`++`, `--`)
 These operators perform primitive arithmetic addition or subtraction of 1.
+
 - `++x` is semantically equivalent to `x + 1`.
+
 - `--x` is semantically equivalent to `x - 1`.
+
 - Note: These are prefix operators and do not have "postfix" variants in the core language.
 
 #### Bitwise NOT (`~`)
 The bitwise NOT operator returns the bitwise complement of a number.
+
 - **Coercion**: Non-integers are coerced to Integers before the bitwise inversion occurs.
+
 - **Result**: Always returns an Integer. For example, `~0` results in `-1` (using two's complement representation).
 
 #### Logical NOT (`!`)
 The logical NOT operator performs a truthiness check and returns a Boolean.
+
 - **Truthiness**: `0`, `none`, and empty tables/strings are typically considered falsey. All other values are truthy.
+
 - **Result**: Returns `true` if the operand is falsey, and `false` otherwise.
 
 ### Binary arithmetic operations
@@ -786,25 +854,37 @@ Binary arithmetic operations in OrgLang are designed to be permissive and mathem
 #### Standard Operators
 
 - **Addition (`+`)**: Performs numeric addition. If both operands are integers and the result is within integer range, results in an **Integer**. If any operand is a Decimal, results in a **Decimal**.
+
 - **Subtraction (`-`)**: Performs numeric subtraction. Same promotion rules as addition.
+
 - **Multiplication (`*`)**: Performs numeric multiplication.
+
 - **Division (`/`)**: Follows specialized precision rules:
+
     - **Exact**: `4 / 2` results in **Integer** `2`.
+
     - **Inexact**: `3 / 2` results in **Rational** `3/2`.
+
     - **Decimal**: If either operand is a Decimal, the result is a **Decimal**.
+
 - **Modulo (`%`)**: Returns the remainder of division. Typically used with Integers.
 
 #### Exponentiation (`**`)
 
 The exponentiation operator raises the left operand to the power of the right operand.
+
 - **Precedence**: Higher than unary negation. Thus, `-1**2` is parsed as `-(1**2)` resulting in `-1`.
+
 - **Promotion**: Often results in a **Decimal** if the power is fractional or negative, unless the result can be exactly represented as an Integer or Rational.
 
 #### Numeric Coercion
 
 Following the principle of **extreme orthogonality**, binary operators automatically coerce non-numeric types into Numbers:
+
 - **Tables/Strings**: Their **size** is used as the numeric value.
+
 - **Booleans**: `true` becomes `1`, `false` becomes `0`.
+
 - **Errors**: Propagate through the operation (the result of any arithmetic with an Error is an Error).
 
 ```rust
@@ -820,14 +900,20 @@ Shifting operations in OrgLang are bitwise operations that operate on numeric va
 
 #### Left Shift (`<<`)
 The left shift operator moves the bits of the left operand to the left by the number of positions specified by the right operand.
+
 - **Coercion**: Non-integers are coerced to Integers via their numeric representation or size.
+
 - **Arithmetic Effect**: Shifting an integer left by $N$ bits is equivalent to multiplying it by $2^N$.
+
 - **Result**: Always an Integer.
 
 #### Right Shift (`>>`)
 The right shift operator moves the bits of the left operand to the right by the number of positions specified by the right operand.
+
 - **Coercion**: Standard numeric coercion applies.
+
 - **Arithmetic Effect**: Shifting an integer right by $N$ bits is equivalent to integer division by $2^N$.
+
 - **Result**: Always an Integer.
 
 ```rust
@@ -843,15 +929,19 @@ Binary bitwise operators in OrgLang perform bit-by-bit operations on their opera
 
 #### Bitwise AND (`&`)
 Returns a number where each bit is `1` only if the corresponding bits of both operands are `1`.
+
 - **Coercion**: Standard numeric/size coercion applies.
+
 - **Result**: Always an Integer.
 
 #### Bitwise OR (`|`)
 Returns a number where each bit is `1` if at least one of the corresponding bits of the operands is `1`.
+
 - **Result**: Always an Integer.
 
 #### Bitwise XOR (`^`)
 Returns a number where each bit is `1` if the corresponding bits of the operands are different.
+
 - **Result**: Always an Integer.
 
 ```rust
@@ -878,22 +968,36 @@ Comparison operators in OrgLang are used to determine the relationship between t
 | `>=` | Greater than or equal to | `x >= y` |
 
 - **Result**: All comparison operators return a **Boolean** (`true` or `false`).
-- **Equality/Inequality**: For numbers, this is standard numeric equality. For strings or tables, it typically compares their sizes unless specialized equality is implemented (see [Future Work](file:///home/paulo/org/projetos/OrgLang/TODO.md) for planned unification).
+
+- **Equality Limitation**: OrgLang does **not** allow the specialization of equality. There are no plans to support custom equality methods for user-defined tables or operators; equality behavior is baked into the runtime for core types.
+
+- **Numeric Comparisons**:
+
+    - **Integer vs. Rational**: Comparison is **exact**. The Integer is treated as a Rational with a denominator of 1.
+
+    - **Decimal vs. Others**: If any operand is a **Decimal**, the other operand is promoted to a Decimal (inexact) before the comparison is performed.
+
+    - **Decimal vs. Decimal**: Compared based on their approximate numeric values.
+
+- **Structural Comparisons**: For strings or tables, comparisons currently default to evaluating their **sizes**.
 
 #### Comparison Chaining
 
 OrgLang allows comparison operators to be chained together, such as `x < y < z`. 
 
 - **Semantics**: In a chain of comparisons, each operation is evaluated in sequence. However, unlike languages like Python (where `x < y < z` is `(x < y) and (y < z)`), OrgLang's current execution model evaluates the chain left-to-right, and the **result of the entire chain is the result of the last comparison**.
+
 - **Example**: `3 < 5 < 2` would evaluate `3 < 5` (returning `true`, which is `1`), then evaluate `1 < 2`, resulting in `true`. 
 
-> [!WARNING]
+> [WARNING]
 > Because of how chaining works, users should be cautious. If a mathematical range check is desired, explicit logical ands should be used once available (e.g., `(x < y) && (y < z)`).
 
 #### Numeric Coercion in Comparisons
 
 As with arithmetic, non-numeric types are coerced to numbers before comparison:
+
 - **Strings/Tables**: Coerced to their **length/size**.
+
 - **Booleans**: `true` is `1`, `false` is `0`.
 
 ```rust
@@ -905,19 +1009,354 @@ true < 2;         # 1 < 2 = true
 
 ### Boolean operations
 
+Boolean operations in OrgLang are used to combine or invert boolean values. They follow the principle of **extreme orthogonality**, meaning they can be applied to any type by first determining its **truthiness**.
+
+#### Truthiness Rules
+
+In OrgLang, nearly every value can be evaluated in a boolean context.
+
+- **Truthy**: Any non-zero Number, any non-empty Table (including non-empty Strings), and any active Resource or Operator.
+
+- **Falsey**: The number `0`, empty Tables `[]`, empty Strings `""`, and **Error**.
+
+#### Logical Operators
+
+| Operator | Description | Result Type |
+| :--- | :--- | :--- |
+| `&&` | Logical AND | Boolean |
+| `||` | Logical OR | Boolean |
+| `!` | Logical NOT | Boolean |
+
+- **Short-circuiting**: Per the language design, `&&` and `||` are **short-circuiting** operators. If the result can be determined by the left operand (e.g., `false && ...` or `true || ...`), the right operand is not evaluated.
+
+  - *Implementation Note*: In the current prototype, these may behave strictly; however, programs should be written assuming short-circuiting behavior.
+
+- **Negation (`!`)**: Returns `true` if the operand is falsey, and `false` if it is truthy.
+
+```rust
+# Examples of boolean logic
+(1 = 1) && (2 = 2); # true
+0 || "hello";       # true (0 is falsey, non-empty string is truthy)
+! [ ];              # true (empty table is falsey)
+! "non-empty";      # false
+```
+
 ### Conditional expressions
 
-### Lambdas
+OrgLang provides three powerful operators for handling conditions and defaults, aligning with its table-centric and expression-based philosophy.
 
-### Expression lists
+#### Table Conditional (`?`)
 
-### Evaluation order
+The `?` operator acts as a conditional lookup. It reverses the standard access order: `condition ? table`.
 
-### Operator precedence
+- **Behavior**: It evaluates the `condition` (left operand) and uses the result as a **key** to look up a value in the `table` (right operand).
 
-### Assignment 
+- **Usage**: Commonly used with a table containing `true` and `false` keys to mimic an if-else expression.
+
+- **Lazy Evaluation**: Since table values are lazy (thunks), only the selected branch is evaluated.
+
+```rust
+result : (x > 0) ? [true: "Positive" false: "Non-positive"];
+```
+
+#### Elvis Operator (`?:`)
+
+The `?:` operator is a "falsy" coalescing operator.
+
+- **Behavior**: Returns the left operand if it is **truthy**. If the left operand is **falsey** (0, empty string, empty table, or Error), it returns the right operand.
+
+- **Usage**: Providing defaults for potentially empty or invalid values.
+
+```rust
+name : input_name ?: "Guest"; # Use "Guest" if input_name is empty or error
+```
+
+#### Error Coalescing (`??`)
+
+The `??` operator is a specialized "Error" coalescing operator, similar to Null Coalescing in other languages.
+
+- **Behavior**: Returns the left operand if it is **not** an Error. If the left operand is an **Error**, it returns the right operand.
+
+- **Distinction**: Unlike `?:`, it preserves other falsey values like `0` or `""`.
+
+```rust
+# If calc_value returns 0, result is 0. If it returns Error, result is 10.
+result : calc_value() ?? 10;
+```
+
+### Lambdas (Anonymous Operators)
+
+In OrgLang, functions are first-class values called **Operators**. Anonymous operators (lambdas) are defined using curly braces `{ ... }`.
+
+#### Implicit Parameters
+Every operator has two implicit parameters available within its scope:
+
+- **`right`**: The primary argument. In a binary expression (`a op b`), this is `b`. In a unary expression (`op x`), this is `x`.
+
+- **`left`**: The secondary argument. In a binary expression (`a op b`), this is `a`. In a unary expression, `left` is bound to **Error**.
+
+#### Defining Operators
+```rust
+# Unary operator (function)
+square : { right * right };
+result : square 4; # 16
+
+# Binary operator
+add : { left + right };
+result : 4 add 5; # 9
+```
+
+#### Recursion (`this`)
+The keyword `this` refers to the current operator itself, allowing for anonymous recursion.
+
+```rust
+factorial : {
+    (right <= 1) ? 1;
+    (right > 1) ? (right * this(right - 1));
+};
+```
+
+> [NOTE]
+> **Variable Capture**: Currently, operators in OrgLang do not capture their lexical environment (closures). They are pure functions of their inputs (`left`, `right`) and global values.
+
+### Table Construction
+
+Tables are the fundamental data structure in OrgLang. There are three primary ways to construct them, each serving a different syntactic purpose but resulting in the same underlying data type.
+
+#### 1. Block Constructor (`[ ]`)
+The square brackets create a new Table scope. Expressions inside are evaluated, and their results are collected into the Table.
+
+- **Separator**: Elements can be separated by spaces or newlines.
+
+- **Scope**: Variables defined inside `[ ... ]` are local to that table.
+
+- **Usage**: Defining data structures, lists, or scoped blocks of code.
+
+```rust
+data : [ 1 2 3 ];
+config : [
+    host: "localhost"
+    port: 8080
+];
+```
+
+#### 2. Comma Operator (`,`)
+The comma is a binary operator that constructs a Table from its operands. It behaves differently depending on whether the left operand is already a Table.
+
+- **Atom, Atom**: Creates a new Table with two elements.
+    - `1, 2` → `[1 2]`
+- **Table, Atom**: Appends the right operand to the left Table.
+    - `[1 2], 3` → `[1 2 3]`
+- **Atom, Table**: Creates a new Table where the right operand is the second element (nesting).
+    - `1, [2 3]` → `[1 [2 3]]`
+- **Table, Table**: Appends the right Table as a *single element* to the left Table (nesting).
+    - `[1 2], [3 4]` → `[1 2 [3 4]]`
+
+> [!NOTE]
+> **Left-Associative**: Because the comma is left-associative, `1, 2, 3` is parsed as `(1, 2), 3`.
+> 1. `(1, 2)` becomes `[1 2]`
+> 2. `[1 2], 3` becomes `[1 2 3]`
+> This makes it efficient for constructing lists.
+
+#### 3. Source File (Implicit Table)
+In OrgLang, **every source file is implicitly a Table**.
+
+- **Behavior**: The top-level scope of a file behaves exactly like the inside of a `[ ... ]` block.
+
+- **Rationale**: This allows OrgLang programs to look like standard script files (sequences of statements) without needing to be wrapped in a main function or a global object.
+
+- **Result**: Importing a file involves executing it and returning the resulting Table.
+
+```rust
+# my_module.org
+x : 10;
+y : 20;
+# This file evaluates to a Table: [ x: 10, y: 20 ]
+```
+
+#### Comparison
+
+| Method | Syntax | Primary Use Case | Scope |
+| :--- | :--- | :--- | :--- |
+| **Block** | `[ ... ]` | Data structures, local scopes | New local scope |
+| **Comma** | `a , b` | Tuples, arguments | Current scope |
+| **File** | (Implicit) | Modules, scripts | File-level scope |
+
+### Evaluation Order
+
+OrgLang is a **Lazy** language by default for its tables and assignments, but **Eager** (mostly) for function calls, with specific evaluation rules.
+
+#### Standard Rule: Left-to-Right
+In general, expressions are evaluated from left to right. This applies to function arguments, list elements, and most binary operators.
+
+#### Exceptions
+
+1.  **Lazy Assignment / Thunks**
+    The most critical exception in OrgLang is the **assignment operator** (`:`).
+    -   **Rule**: The expression on the right side of an assignment is **NOT evaluated** at the moment of assignment.
+    -   **Thunks**: Instead, it is stored as a "Thunk" (a suspended computation).
+    -   **Evaluation**: The value is only computed when it is **used** (e.g., accessed via `.`, used in arithmetic, or printed).
+    -   **Consequence**: The "type" of every assignment is effectively an `Expression` (or Thunk) until it is forced.
+
+    ```rust
+    x : 1 / 0;   # No error here! The division is not performed yet.
+    y : x + 1;   # Still no error! 'y' is now a thunk depending on 'x'.
+    y -> @stdout; # Error happens HERE, when @stdout pulls 'y', which pulls 'x'.
+    ```
+
+2.  **Short-Circuiting Operators**
+    -   `&&` and `||`: The left operand is evaluated first. The right operand is evaluated **only if necessary**.
+    -   `?`, `?:`, `??`: The condition (left) is evaluated first. Only the selected branch (right or fallback) is evaluated.
+
+3.  **Right-Associative Operators**
+    For operators that are right-associative, the parsing groups them from right to left, but the *evaluation* of operands typically still happens left-to-right before the operator function is called, unless they are lazy constructions.
+    -   **Assignment (`:`)**: `a : b : c` parses as `a : (b : c)`.
+    -   **Exponentiation (`**`)**: `2 ** 3 ** 4` parses as `2 ** (3 ** 4)`.
+
+4.  **Unary Operators**
+    Prefix operators (`-`, `!`, `~`) evaluate their single operand (to the right) before applying the operation.
+
+### Operator Precedence
+
+OrgLang uses a **Pratt Parser** to handle operator precedence and associativity. The following table lists operators from highest binding power (tightest binding) to lowest.
+
+| Precedence | Operator | Description | Associativity |
+| :--- | :--- | :--- | :--- |
+| **900** | `@`, `~`, `!`, `-` | Unary Prefix | N/A |
+| **800** | `.`, `?`, `??`, `?:` | Access / Call / Conditional | Left |
+| **500** | `**` | Exponentiation | **Right** |
+| **400** | `o`, `\|>` | Composition / Injection | Left |
+| **300** | `*`, `/`, `&`, `%` | Product / Bitwise AND | Left |
+| **200** | `+`, `-`, `\|`, `^`, `<<`, `>>` | Sum / Bitwise OR/XOR/Shift | Left |
+| **150** | `=`, `<>`, `<`, `>`, `<=`, `>=` | Comparisons | Left |
+| **140** | `&&` | Logical AND | Left |
+| **130** | `\|\|` | Logical OR | Left |
+| **100** | *(User Defined)* | Custom Operators | Left (Default) |
+| **80** | `:` | Binding (Assignment) | **Right** |
+| **60** | `,` | Comma (Table construction) | Left |
+| **50** | `->`, `-<`, `-<>` | Flow / Dispatch / Join | Left |
+| **0** | `;` | Statement Terminator | N/A |
+
+> [NOTE]
+> **User-Defined Operators**: By default, custom operators fall into the **100** slot. This places them below standard arithmetic but above flow and assignment, minimizing ambiguity in pipelines.
+
+### Assignment
+
+Assignment in OrgLang is fundamentally about **constructing Tables**. Since every scope is a Table, "assigning" a value to a name is equivalent to creating a **Pair** (Key-Value binding) within that Table.
+
+#### Standard Assignment (`:`)
+The colon operator `:` binds a value (the right operand) to a name (the left operand).
+
+-   **Semantics**: Creates a Pair `[Name Value]`. When occurring inside a Table constructor (including a source file), this Pair becomes a named entry in that Table.
+-   **Laziness**: As noted in [Evaluation Order](#evaluation-order), the value is stored as a **Thunk** and is not evaluated until used.
+
+```rust
+x : 10;       # Binds 'x' to a thunk returning 10
+config : [
+    port : 8080   # Binds 'port' to 8080 within the 'config' table
+];
+```
+
+#### Extended Assignment (Reserved)
+OrgLang reserves a set of operators for **extended assignment**, which combines an operation with assignment (modification).
+
+> [WARNING]
+> These operators are **not yet implemented** in the current runtime. They are reserved for future versions to support in-place mutation or syntactic sugar.
+
+| Operator | Description | Equivalent To (Conceptually) |
+| :--- | :--- | :--- |
+| `:+` | Add and Assign | `x : x + y` |
+| `:-` | Subtract and Assign | `x : x - y` |
+| `:~` | Concatenate and Assign | `x : x ~ y` |
+| `:>>` | Right Shift and Assign | `x : x >> y` |
+| `:<<` | Left Shift and Assign | `x : x << y` |
+| `++` | Increment (Prefix) | `x : x + 1` |
+| `--` | Decrement (Prefix) | `x : x - 1` |
+
+> [NOTE]
+> Currently, `++` and `--` are implemented as **Arithmetic Operators** that return `value + 1` or `value - 1` without modifying the variable. Full mutation support is planned for a future release.
 
 ### Resources
+
+Resources in OrgLang are the bridge between the pure, immutable world of your program and the mutable, effectful world outside (file system, network, screen). They are based on **Algebraic Effects**, meaning that "doing" something is separated from "interpreting" it.
+
+#### Concept: Effect Reification
+When you write to a file or print to the screen, you aren't just calling a C function. You are creating a **Resource Instance** that represents that interaction. The runtime then "interprets" this instance to perform the actual side effect.
+
+#### Resource Primitives vs. Standard Library
+It is important to distinguish between **Runtime Primitives** (implemented in C) and **Standard Library Resources** (implemented in OrgLang).
+
+**1. Runtime Primitive (`@sys`)**
+Currently, OrgLang exposes a single, low-level primitive for system interaction: `@sys`.
+-   **Behavior**: It accepts a **Command List** where the first element is a string (e.g., "write", "read") and subsequent elements are arguments.
+-   **Purpose**: It acts as a direct bridge to C-level system calls.
+
+**2. Standard Library Resources**
+These are high-level abstractions built *using* the `@sys` primitive.
+-   `@stdout`: Wrapper around `["write" 1 ...] @ sys`.
+-   `@stdin`: Wrapper around `["read" 0 ...] @ sys`.
+
+```rust
+# How stdout is implemented (conceptually)
+stdout : resource [
+    step: { ["write" 1 right -1] @ sys }
+];
+```
+
+*Planned Primitives*:
+Future versions may introduce specialized primitives like `@file` or `@net` for better performance and type safety, reducing reliance on the generic `@sys`.
+
+#### The `resource` Operator
+You can define your own resources using the `resource` keyword. A resource definition is a Table that acts as a blueprint, specifying how to handle the lifecycle of the effect.
+
+**Lifecycle Hooks**:
+-   `setup`: (Optional) Called when the resource is instantiated. Returns the initial state.
+-   `step`: (Optional) Called when data is pushed *into* the resource (via `->`).
+-   `next`: (Optional) Called when data is pulled *from* the resource.
+-   `teardown`: (Optional) Called when the resource is closed or goes out of scope.
+
+```rust
+# A simple logger resource
+Logger : resource [
+    step: {
+        # 'right' is the data being pushed
+        ["write" 1 ("LOG: " ~ right ~ "\n")] @ sys # Syscall to write to FD 1
+    }
+];
+```
+
+#### Instantiation (`@`)
+To use a resource, you must **instantiate** it using the prefix `@` operator. This creates a live instance with its own state.
+
+```rust
+log : @Logger; # Create an instance of Logger
+"Hello" -> log; # Push data to it
+```
+
+> [!NOTE]
+> For singleton resources like `stdout`, the standard library often provides a pre-instantiated global naming convention (e.g., `stdout` vs `@stdout`).
+
+### Flux Operators
+Resources are primarily used with Flux operators to move data.
+
+-   `->` (**Push**): Sends data to a resource's `step` function. `source -> @stdout`.
+-   `-<` (**Dispatch**): load-balances data across multiple resources.
+-   `-<>` (**Join**): Synchronizes multiple resource streams.
+
+#### Scoped Resources (`@arena`)
+
+Scoped resources are a special pattern where a resource manages a memory arena for the duration of a flow. This allows for safe, high-performance heap allocation with deterministic teardown.
+
+-   **Arena**: The `@arena` resource creates a memory context. Any resources (like `@file` or `@net`) created "downstream" of an arena are tracked by it.
+-   **Middleware Pattern**: Arenas are often used as middleware in a flow chain to wrap the execution context.
+-   **Teardown**: When the flow ends or the scope is exited, the Arena automatically tears down all tracked resources in reverse order of creation.
+
+```rust
+# Use Arena to manage memory for a file operation
+"data.txt" -> @file_reader -> @arena -> @process -> @stdout;
+```
+
+In this example, `@file_reader` allocates its buffer within `@arena`. when the flow completes, `@arena` is freed, automatically closing the file and reclaiming memory.
 
 ### Operator definitions
 
@@ -930,3 +1369,15 @@ true < 2;         # 1 < 2 = true
 ### Expression input
 
 ### Full Grammar specification
+
+## Build model
+
+### Project structure
+
+### Imports
+
+### Executables
+
+### Libraries
+
+### Dependencies
