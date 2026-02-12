@@ -366,7 +366,27 @@ The binary `->` operator drives data from a source (left operand) to a sink (rig
 @stdin -> { args * 2 } -> @stdout;
 ```
 
+#### Assignment operators
+
+In OrgLang, assignment is strictly an operation that binds a value to a name within a [Table](#tables-as-blocks).
+
+| Operator | Name | Description |
+| :--- | :--- | :--- |
+| `:` | Binding | Binds the result of the right expression to the name specified on the left. |
+
 #### Operator definitions
+
+OrgLang allows for the definition of custom operators and the refinement of existing ones using the **Binding Power** syntax. This syntax defines the left and right binding powers, determining the operator's precedence and associativity.
+
+```orglang
+# Define a unary operator with prefix power 100
+! : 100 { ... };
+
+# Define a binary operator with left power 50 and right power 60
+op : 50 { ... } 60;
+```
+
+When an operator is called, the expression within the braces is evaluated with `args` bound to the operand(s). For binary operators, `args` typically contains the right operand, while the left operand is made available via `this` or positional access depending on the context.
 
 ### Delimiters
 
