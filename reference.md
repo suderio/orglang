@@ -298,7 +298,7 @@ Arithmetic operators perform standard mathematical calculations. In OrgLang, the
 | `^` | Power | Binary | Returns the left operand raised to the power of the right operand (Right-associative). |
 
 > [!NOTE]
-> **Table Semantic**: When applied to [Table literals](#table-literals) or [Strings](#string-literals), the `+` operator returns the **sum of their lengths**, rather than performing concatenation.
+> **Implicit Coercion**: Any arithmetic operator can be applied to [Table literals](#table-literals) and [Strings](#string-literals), in which case their **size** is used as the numeric value. Additionally, [Boolean literals](#boolean-literals) are coerced to numbers: `true` is treated as `1`, and `false` as `0`.
 
 #### Bitwise operators
 
@@ -318,6 +318,9 @@ Comparison operators compare two values and always return a [Boolean literal](#b
 | `>` | Greater than | `x > y` |
 | `>=` | Greater than or equal to | `x >= y` |
 
+> [!NOTE]
+> **Implicit Coercion**: Comparison operators follow the same coercion rules as [Arithmetic operators](#arithmetic-operators): Tables and Strings use their size, and Booleans are treated as `1` (`true`) or `0` (`false`).
+
 > [!IMPORTANT]
 > **Comparison Chaining**: Since every comparison returns a Boolean, the result of a chain (e.g., `x < y < z`) is the result of the **last comparison** in the chain. This differs from languages where such a chain might be shorthand for `(x < y) && (y < z)`.
 
@@ -330,6 +333,9 @@ Boolean operators are used to perform logical calculations.
 | `~` | NOT | Unary | Returns the logical negation of a boolean value. |
 | `&&` | AND | Binary | Short-circuit logical AND (returns `true` only if both are `true`). |
 | `\|\|` | OR | Binary | Short-circuit logical OR (returns `true` if at least one is `true`). |
+
+> [!NOTE]
+> **Truthiness**: Boolean operators can be applied to [Table literals](#table-literals) and [Strings](#string-literals). They follow a "size-based" truthiness rule: a size of `0` is treated as `false`, and every other value (size `> 0`) is treated as `true`.
 
 #### Conditional operators
 
