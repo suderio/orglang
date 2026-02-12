@@ -571,9 +571,9 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
     char buf[64];
     sprintf(buf, "%lld", l_val * r_val);
     return org_int_from_str(a, buf);
-  } else if (strcmp(op, "/") == 0) {
+  } else if (strcmp(op, "**") == 0) {
     char buf[64];
-    sprintf(buf, "%lld", r_val != 0 ? l_val / r_val : 0);
+    sprintf(buf, "%lld", (long long)pow((double)l_val, (double)r_val));
     return org_int_from_str(a, buf);
   }
 
@@ -633,6 +633,17 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
     } else {
       return org_list_make(a, 2, left, right);
     }
+  }
+
+  // Logical / Bitwise (Non-short-circuit)
+  if (strcmp(op, "&") == 0) {
+    return org_bool(a, (l_val != 0) && (r_val != 0));
+  }
+  if (strcmp(op, "|") == 0) {
+    return org_bool(a, (l_val != 0) || (r_val != 0));
+  }
+  if (strcmp(op, "^") == 0) {
+    return org_bool(a, (l_val != 0) ^ (r_val != 0));
   }
 
   // Pair Construction :

@@ -303,7 +303,7 @@ Arithmetic operators perform standard mathematical calculations. In OrgLang, the
 #### Bitwise operators
 
 > [!NOTE]
-> **TBD**: Bitwise operators (e.g., `&`, `\|`, `^` (XOR), `<<`, `>>`) are not yet implemented in the current runtime version.
+> **TBD**: Pure bitwise operations (e.g., bit shifting `<<`, `>>`) are not yet implemented. The symbols `&`, `\|`, and `^` are currently available as **non-short-circuit [Boolean operators](#boolean-operators)**.
 
 #### Comparison operators
 
@@ -333,6 +333,9 @@ Boolean operators are used to perform logical calculations.
 | `~` | NOT | Unary | Returns the logical negation of a boolean value. |
 | `&&` | AND | Binary | Short-circuit logical AND (returns `true` only if both are `true`). |
 | `\|\|` | OR | Binary | Short-circuit logical OR (returns `true` if at least one is `true`). |
+| `&` | Logical AND | Binary | **Non-short-circuit** logical AND. |
+| `\|` | Logical OR | Binary | **Non-short-circuit** logical OR. |
+| `^` | Logical XOR | Binary | Returns `true` if exactly one of the operands is `true`. |
 
 > [!NOTE]
 > **Truthiness**: Boolean operators can be applied to [Table literals](#table-literals) and [Strings](#string-literals). They follow a "size-based" truthiness rule: a size of `0` is treated as `false`, and every other value (size `> 0`) is treated as `true`.

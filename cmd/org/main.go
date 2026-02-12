@@ -181,7 +181,7 @@ func compile(sourcePath, key string) error {
 	// If output file is absolute, we need to be careful with include paths.
 	// simple: gcc -o output input.c
 
-	buildCmd := exec.Command("gcc", "-o", key, cPath)
+	buildCmd := exec.Command("gcc", "-o", key, cPath, "-lm")
 	// Ensure GCC can find orglang.h if it's not in CWD?
 	// If cPath is relative, it's fine.
 

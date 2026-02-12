@@ -269,8 +269,8 @@ Arithmetic operators always return a number (integer or decimal).
   |`:*`      | Multiplication and Assignment   | `x :* 3`
   |`:/`      | Division and Assignment         | `x :/ 4`
   |`:%`      | Modulo and Assignment           | `x :% 5`
-  |`--`      | Increment and Assignment        | `--x`
-  |`++`      | Decrement and Assignment        | `++x`
+  |`--`      | Increment and Assignment        | `-- x`
+  |`++`      | Decrement and Assignment        | `++ x`
   |`:>>`     | Right Shift and Assignment      | `x :>> 5`
   |`:<<`     | Left Shift and Assignment       | `x :<< 5`
   |`:&`      | AND and Assignment              | `x :& y`
