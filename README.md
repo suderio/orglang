@@ -1,8 +1,8 @@
-# Fun Language - Reference Manual
+# Org Language - Reference Manual
 
-Welcome to the **Fun Language** reference manual! This guide provides a
+Welcome to the **Org Language** reference manual! This guide provides a
 comprehensive and user-friendly overview of the language, covering syntax,
-operators, data types, and constructs. **Fun Language** is designed to be
+operators, data types, and constructs. **Org Language** is designed to be
 expressive, flexible, and easy to use, supporting arithmetic operations,
 logic, table manipulation, and more.
 
@@ -24,7 +24,7 @@ logic, table manipulation, and more.
 
 ### File
 
-A **Fun Language** program is a sequence of **expressions**, separated by
+A **Org Language** program is a sequence of **expressions**, separated by
 semicolons (`;`). Example:
 
 ```fun
@@ -264,14 +264,14 @@ block comment.
 
 ---
 
-This manual provides an introductory overview of the **Fun Language**. Explore
+This manual provides an introductory overview of the **Org Language**. Explore
 its capabilities and build powerful expressions effortlessly! 🚀
 
 ## Initial Design Goals
 
 - Scripting language, used to fast development
 - Very few types:
-  - Null
+  - Error
   - Boolean
   - Number (Integer and Decimal subtypes)
   - Table (String subtype)
@@ -284,55 +284,3 @@ its capabilities and build powerful expressions effortlessly! 🚀
   or null if the value is not supported.
 - Extreme orthogonality of the basic operators.
 
----
-
-## Running the application in dev mode
-
-You can run your application in dev mode that enables live coding using:
-
-```shell script
-./mvnw quarkus:dev
-```
-
----
-
-## Packaging and running the application - Quarkus
-
-The application can be packaged using:
-
-```shell script
-./mvnw package
-```
-
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
-```
-
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
-
----
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable
-build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
-```
-
-You can then execute your native executable with: `./target/lang-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
----
