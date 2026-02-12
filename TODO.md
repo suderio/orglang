@@ -3,7 +3,9 @@
 Summary of pending issues and feature enhancements discovered during sanity test refinements.
 
 ## Refinement Required
-- [ ] **Division equality**: `(6 / 3) = 2` fails because division returns a `Decimal` (`2.0`), which fails strict equality against Integer `2`. Need to implement type coercion for comparison operators or unify numeric types.
+- [ ] **Arbitrary Precision Numerics**: Replace current `long long` and `double` implementations with arbitrary-precision types (BigInt and BigDecimal) to support the language's design goals.
+- [ ] **Rationals and Division**: Implement actual `Rational` type support. Update division logic: `Integer / Integer` returns an `Integer` if exact, otherwise a `Rational` (e.g., `3 / 2 = 3/2`).
+- [ ] **Division equality**: `(6 / 3) = 2` currently fails due to type mismatch (Decimal vs Integer). This will be resolved by the new numeric unification/division logic.
 - [ ] **Lazy Iterator Indexing**: Operations like `([1 2 3] -> { right + 1 }).0` fail because the pipeline returns a `MapIterator` (lazy), not a Table.
     - [ ] Option A: Support index access directly on Iterators by driving them until the requested index.
     - [ ] Option B: Implement an "eager collection" operator (e.g., `!`) to convert Iterators to Tables (e.g., `(list -> map)! . 0`).
