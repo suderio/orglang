@@ -1,0 +1,5 @@
+("write", 1, "Dot Access:\n", 12) @ sys;
+print([10 20 30] . 0);
+
+("write", 1, "Question Access:\n", 17) @ sys;
+print(1 ? [10 20 30]);

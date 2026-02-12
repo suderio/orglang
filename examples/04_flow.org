@@ -1,11 +1,14 @@
 # 04_flow.org
 # Flow control and Error handling
 
-# The '?' operator (Test)
-# (1 = 0) ? returns true if not zero, empty or false.
-check_positive : { (right > 0) ? };
+check_positive : { (right > 0) };
 valid : check_positive 10; # true
 invalid : check_positive -5; # false
+
+# The '?' operator (Conditional)
+(1 > 0) ? [true: "Ok", false: "Not Ok"]; # "Ok"
+# Works for any key, not just true/false
+(1 - 0) ? ["Not Ok", "Ok"]; # "Ok"
 
 # The '??' operator (Error Coalescing)
 # Returns left if not Error, else right.
@@ -25,5 +28,5 @@ fallback : null_val ?: "default"; # "default"
 # If check_positive returns Error for some elements, how does the list behave?
 # 
 list : [1 -2 3 -4];
-# processed : list -> check_positive; 
+processed : list -> check_positive; 
 # Result might be [true false true false]

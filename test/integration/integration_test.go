@@ -35,6 +35,10 @@ func TestIntegration(t *testing.T) {
 	}
 
 	for _, file := range files {
+		// math.org is a module intended for import, not standalone test
+		if filepath.Base(file) == "math.org" {
+			continue
+		}
 		t.Run(filepath.Base(file), func(t *testing.T) {
 			runTest(t, compilerPath, file)
 		})
@@ -42,9 +46,6 @@ func TestIntegration(t *testing.T) {
 }
 
 func runTest(t *testing.T, compiler string, sourcePath string) {
-	// Assume sourcePath is relative to test execution dir?
-	// `go test ./test/integration` runs in `test/integration`.
-	// sourcePath from glob is `testdata/file.org`.
 	absSource, _ := filepath.Abs(sourcePath)
 
 	// Command: ./org run <file>
@@ -52,10 +53,12 @@ func runTest(t *testing.T, compiler string, sourcePath string) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	// Provide empty stdin to avoid hanging on @stdin -> @stdout
+	cmd.Stdin = bytes.NewReader(nil)
 
 	err := cmd.Run()
 	if err != nil {
-		t.Fatalf("compiler execution failed: %v\nStderr: %s", err, stderr.String())
+		t.Fatalf("compiler execution failed for %s: %v\nStderr: %s", sourcePath, err, stderr.String())
 	}
 
 	actual := stdout.Bytes()

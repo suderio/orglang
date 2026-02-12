@@ -1,0 +1,5 @@
+# Math Module
+add : { args.0 + args.1 };
+sub : { args.0 - args.1 };
+
+

@@ -3,13 +3,26 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	"orglang/internal/ast"
+	"orglang/internal/ast" // Added this import
 	"strings"
 	"text/template"
 )
 
+// Added this global variable
+var primitives = map[string]bool{
+	"sys": true,
+	"mem": true,
+	"org": true,
+}
+
 const cTemplate = `#include "orglang.h"
 #include <stdio.h>
+
+// Globals
+{{ .Globals }}
+
+// Auxiliary Functions
+{{ .AuxFunctions }}
 
 int main() {
     Arena *arena = arena_create(1024 * 1024);
@@ -24,16 +37,30 @@ int main() {
 `
 
 type CEmitter struct {
-	tmpl *template.Template
+	tmpl           *template.Template
+	auxFunctions   []string
+	funcCounter    int
+	ModuleLoader   func(string) (*ast.Program, error)
+	ModuleRegistry map[string]string // Path -> FunctionName
+	bindings       map[string]bool
 }
 
-func NewCEmitter() *CEmitter {
+func NewCEmitter(loader func(string) (*ast.Program, error)) *CEmitter {
 	t, _ := template.New("c").Parse(cTemplate)
-	return &CEmitter{tmpl: t}
+	return &CEmitter{
+		tmpl:           t,
+		auxFunctions:   []string{},
+		funcCounter:    0,
+		ModuleLoader:   loader,
+		ModuleRegistry: make(map[string]string),
+		bindings:       make(map[string]bool),
+	}
 }
 
 type TemplateData struct {
-	Body string
+	Globals      string
+	Body         string
+	AuxFunctions string
 }
 
 func (c *CEmitter) Generate(program *ast.Program) (string, error) {
@@ -47,8 +74,16 @@ func (c *CEmitter) Generate(program *ast.Program) (string, error) {
 		bodyBuilder.WriteString("    " + code + ";\n")
 	}
 
+	// Pre-declarations for globals
+	var globalsBuilder strings.Builder
+	for b := range c.bindings {
+		globalsBuilder.WriteString(fmt.Sprintf("static OrgValue *org_var_%s = NULL;\n", b))
+	}
+
 	data := TemplateData{
-		Body: bodyBuilder.String(),
+		Globals:      globalsBuilder.String(),
+		Body:         bodyBuilder.String(),
+		AuxFunctions: strings.Join(c.auxFunctions, "\n"),
 	}
 
 	var output bytes.Buffer
@@ -102,34 +137,157 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 		// `org_op_infix(arena, "+", left, right)`
 		if e.Operator == "->" {
 			// Check for @stdout
-			// right side is PrefixExpression(@) -> Identifier(stdout)
-			if rightPrefix, ok := e.Right.(*ast.PrefixExpression); ok && rightPrefix.Operator == "@" {
-				if rightIdent, ok := rightPrefix.Right.(*ast.Identifier); ok && rightIdent.Value == "stdout" {
-					return fmt.Sprintf("org_print(arena, %s)", left), nil
+			// REMOVED SPECIAL CASE. Handled by runtime.
+			// if rightPrefix, ok := e.Right.(*ast.PrefixExpression); ok && rightPrefix.Operator == "@" {
+			// 	if rightIdent, ok := rightPrefix.Right.(*ast.Identifier); ok && rightIdent.Value == "stdout" {
+			// 		return fmt.Sprintf("org_print(arena, %s)", left), nil
+			// 	}
+			// }
+		}
+		if e.Operator == "@" {
+			// Infix @ : Primitives or Modules
+			// Left @ Right
+
+			// 1. Check for Module Import: "path" @ org
+			if rightIdent, ok := e.Right.(*ast.Identifier); ok && rightIdent.Value == "org" {
+				if pathLit, ok := e.Left.(*ast.StringLiteral); ok {
+					return c.compileModule(pathLit.Value)
 				}
 			}
+
+			rightIdent, ok := e.Right.(*ast.Identifier)
+			if !ok {
+				// Maybe it's @(sys) or similar?
+				// For now expect identifier.
+				return "", fmt.Errorf("expected identifier on right side of @, got %T", e.Right)
+			}
+
+			if rightIdent.Value == "sys" {
+				// org_syscall(arena, left)
+				return fmt.Sprintf("org_syscall(arena, %s)", left), nil
+			} else if rightIdent.Value == "mem" {
+				// org_malloc(arena, org_value_to_long(left))
+				return fmt.Sprintf("org_malloc(arena, org_value_to_long(%s))", left), nil
+			} else if rightIdent.Value == "org" {
+				// Handled above if Left is String.
+				// If Left is not string, runtime error or dynamic load?
+				// For now error.
+				return "", fmt.Errorf("left side of @ org must be a string literal (path)")
+			} else {
+				return "", fmt.Errorf("unknown resource primitive: @%s", rightIdent.Value)
+			}
 		}
+
+		if e.Operator == "." || e.Operator == "?" {
+			// Table Access
+			// Left is Table, Right is Key (Expression)
+			// We need to pass the Key as an OrgValue to org_table_get.
+			// Currently we emitExpression(Right) which generates code that returns OrgValue*.
+			// This works for Indices (IntegerLiteral -> org_int_from_str).
+			// For Identifiers (table.key), parsed as Identifier "key". emitExpression("key") -> returns value of variable "key".
+			// BUT `.` implies literal key.
+			// We need to handle this divergence.
+
+			var keyCode string
+
+			// Check if Right is Identifier or StringLiteral acting as Key
+			if ident, ok := e.Right.(*ast.Identifier); ok {
+				// Treat as String Key: org_string_from_c(arena, "ident")
+				keyCode = fmt.Sprintf("org_string_from_c(arena, \"%s\")", ident.Value)
+			} else if _, ok := e.Right.(*ast.IntegerLiteral); ok {
+				// Integer Literal: standard emit
+				var err error
+				keyCode, err = c.emitExpression(e.Right)
+				if err != nil {
+					return "", err
+				}
+			} else {
+				// Fallback: evaluate expression (dynamic key)
+				var err error
+				keyCode, err = c.emitExpression(e.Right)
+				if err != nil {
+					return "", err
+				}
+			}
+
+			getCall := fmt.Sprintf("org_table_get(arena, %s, %s)", left, keyCode)
+
+			// Clean logic:
+			if e.Operator == "?" {
+				// Left is Cond (Key), Right is Table
+				tableCode, err := c.emitExpression(e.Right)
+				if err != nil {
+					return "", err
+				}
+
+				keyCode, err := c.emitExpression(e.Left)
+				if err != nil {
+					return "", err
+				}
+
+				// If Key is bool? (n > 0). BooleanLiteral or Expression.
+				// We need key as OrgValue*.
+
+				getCall = fmt.Sprintf("org_table_get(arena, %s, %s)", tableCode, keyCode)
+				return fmt.Sprintf("org_value_evaluate(arena, %s)", getCall), nil
+			}
+
+			// Fallthrough for . (Dot)
+			// Left is Table, Right is Key.
+			return getCall, nil
+		}
+
+		if e.Operator == ":" {
+			// Pair: left : right -> [left, right]
+			// If left is Identifier, it's a binding.
+			if ident, ok := e.Left.(*ast.Identifier); ok {
+				c.bindings[ident.Value] = true
+				return fmt.Sprintf("(org_var_%s = %s, org_pair_make(arena, org_string_from_c(arena, \"%s\"), org_var_%s))",
+					ident.Value, right, ident.Value, ident.Value), nil
+			}
+			return fmt.Sprintf("org_pair_make(arena, %s, %s)", left, right), nil
+		}
+
 		return fmt.Sprintf("org_op_infix(arena, \"%s\", %s, %s)", e.Operator, left, right), nil
 
 	case *ast.CallExpression:
-		fn, ok := e.Function.(*ast.Identifier)
-		if !ok {
-			return "", fmt.Errorf("complex function calls not supported yet")
+		// 1. Emit Function Expression
+		fnCode, err := c.emitExpression(e.Function)
+		if err != nil {
+			return "", err
 		}
-		if fn.Value == "print" {
-			if len(e.Arguments) != 1 {
-				return "", fmt.Errorf("print() expects exactly 1 argument")
-			}
-			arg, err := c.emitExpression(e.Arguments[0])
+
+		// 2. Emit Arguments
+		var argCode string
+		if len(e.Arguments) == 0 {
+			argCode = "NULL"
+		} else if len(e.Arguments) == 1 {
+			argCode, err = c.emitExpression(e.Arguments[0])
 			if err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("org_print(arena, %s)", arg), nil
+		} else {
+			// Wrap multiple arguments in a list
+			var argBuilder strings.Builder
+			for _, arg := range e.Arguments {
+				val, err := c.emitExpression(arg)
+				if err != nil {
+					return "", err
+				}
+				argBuilder.WriteString(", ")
+				argBuilder.WriteString(val)
+			}
+			argCode = fmt.Sprintf("org_list_make(arena, %d%s)", len(e.Arguments), argBuilder.String())
 		}
-		return "", fmt.Errorf("unknown function: %s", fn.Value)
+
+		// 3. Emit Call
+		return fmt.Sprintf("org_call(arena, %s, %s)", fnCode, argCode), nil
 
 	case *ast.BlockLiteral:
-		return "NULL /* Block not implemented */", nil
+		return c.emitBlockLiteral(e)
+
+	case *ast.ResourceLiteral:
+		return c.emitResourceLiteral(e)
 
 	case *ast.ListLiteral:
 		var argBuilder strings.Builder
@@ -149,7 +307,16 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 		return c.emitExpression(e.Expression)
 
 	case *ast.Identifier:
-		return e.Value, nil
+		if e.Value == "args" {
+			return "args", nil
+		}
+		if e.Value == "this" {
+			return "this_val", nil
+		}
+		if primitives[e.Value] {
+			return fmt.Sprintf("org_string_from_c(arena, \"%s\")", e.Value), nil
+		}
+		return fmt.Sprintf("org_var_%s", e.Value), nil
 
 	case *ast.BooleanLiteral:
 		if e.Value {
@@ -160,4 +327,156 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 	default:
 		return "", fmt.Errorf("unknown expression type: %T", expr)
 	}
+}
+
+func (c *CEmitter) emitBlockLiteral(bl *ast.BlockLiteral) (string, error) {
+	fnName := fmt.Sprintf("org_fn_%d", c.funcCounter)
+	c.funcCounter++
+
+	var bodyBuilder strings.Builder
+
+	// Iterate statements
+	for i, stmt := range bl.Statements {
+		stmtCode, err := c.emitStatement(stmt)
+		if err != nil {
+			return "", err
+		}
+
+		if i == len(bl.Statements)-1 {
+			bodyBuilder.WriteString("return " + stmtCode + ";\n")
+		} else {
+			bodyBuilder.WriteString(stmtCode + ";\n")
+		}
+	}
+
+	if len(bl.Statements) == 0 {
+		bodyBuilder.WriteString("return NULL;\n")
+	}
+
+	fnParams := "Arena *arena, OrgValue *this_val, OrgValue *args"
+	fnDef := fmt.Sprintf("static OrgValue *%s(%s) {\n%s}\n", fnName, fnParams, bodyBuilder.String())
+
+	c.auxFunctions = append(c.auxFunctions, fnDef)
+
+	return fmt.Sprintf("org_func_create(arena, %s)", fnName), nil
+}
+
+func (c *CEmitter) flattenComma(expr ast.Expression) []ast.Expression {
+	if infix, ok := expr.(*ast.InfixExpression); ok && infix.Operator == "," {
+		return append(c.flattenComma(infix.Left), c.flattenComma(infix.Right)...)
+	}
+	return []ast.Expression{expr}
+}
+
+func (c *CEmitter) emitResourceLiteral(rl *ast.ResourceLiteral) (string, error) {
+	// Parse Body (ListLiteral) for setup, step, teardown, next keys
+	var setup, step, teardown, nextStr string = "NULL", "NULL", "NULL", "NULL"
+
+	// Iterate over elements
+	if rl.Body != nil {
+		for _, el := range rl.Body.Elements {
+			for _, item := range c.flattenComma(el) {
+				// Look for InfixExpression with operator ":"
+				if infix, ok := item.(*ast.InfixExpression); ok && infix.Operator == ":" {
+					// Left should be identifier
+					if ident, ok := infix.Left.(*ast.Identifier); ok {
+						valCode, err := c.emitExpression(infix.Right)
+						if err != nil {
+							return "", err
+						}
+
+						switch ident.Value {
+						case "setup":
+							setup = valCode
+						case "step":
+							step = valCode
+						case "teardown":
+							teardown = valCode
+						case "next":
+							nextStr = valCode
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return fmt.Sprintf("org_resource_create(arena, %s, %s, %s, %s)", setup, step, teardown, nextStr), nil
+}
+
+func (c *CEmitter) compileModule(path string) (string, error) {
+	// TODO: Resolve absolute path relative to current module?
+	// For now, assume relative to execution or absolute.
+	// But duplicate check needs canonical path.
+	// Since we don't have CWD easily in emitter, we rely on path as key.
+	// main.go ModuleLoader receives path.
+
+	// Check Registry
+	if fnName, ok := c.ModuleRegistry[path]; ok {
+		return fmt.Sprintf("%s(arena, NULL, NULL)", fnName), nil
+	}
+
+	// Load Module
+	if c.ModuleLoader == nil {
+		return "", fmt.Errorf("module loader not initialized")
+	}
+	program, err := c.ModuleLoader(path)
+	if err != nil {
+		return "", err
+	}
+
+	// Compile to Function
+	fnName := fmt.Sprintf("org_module_%d", c.funcCounter)
+	c.funcCounter++
+	c.ModuleRegistry[path] = fnName
+
+	// Track bindings discovered during this module's emission
+	// Note: CEmitter.bindings is GLOBAL to all modules compiled by this emitter.
+	// We want to declare only the ones used in this module at the top of the function.
+	// But since C doesn't mind extra NULL globals/locals if named uniquely (they are prefixed by org_var_),
+	// we could just declare the new ones.
+	// However, shadowing might be an issue if we use 'static' globals.
+	// For modules, we use LOCAL variables.
+
+	existingBindings := make(map[string]bool)
+	for k := range c.bindings {
+		existingBindings[k] = true
+	}
+
+	var bodyBuilder strings.Builder
+	var resultVars []string
+
+	for i, stmt := range program.Statements {
+		stmtCode, err := c.emitStatement(stmt)
+		if err != nil {
+			return "", err
+		}
+
+		resVar := fmt.Sprintf("stmt_%d", i)
+		bodyBuilder.WriteString(fmt.Sprintf("    OrgValue *%s = %s;\n", resVar, stmtCode))
+		resultVars = append(resultVars, resVar)
+	}
+
+	var declsBuilder strings.Builder
+	for b := range c.bindings {
+		if !existingBindings[b] {
+			declsBuilder.WriteString(fmt.Sprintf("    OrgValue *org_var_%s = NULL;\n", b))
+		}
+	}
+
+	finalBody := declsBuilder.String() + bodyBuilder.String()
+
+	if len(resultVars) == 0 {
+		finalBody += "    return NULL;\n"
+	} else {
+		args := strings.Join(resultVars, ", ")
+		finalBody += fmt.Sprintf("    return org_list_make(arena, %d, %s);\n", len(resultVars), args)
+	}
+
+	fnParams := "Arena *arena, OrgValue *this_val, OrgValue *args"
+	fnDef := fmt.Sprintf("static OrgValue *%s(%s) {\n%s}\n", fnName, fnParams, finalBody)
+
+	c.auxFunctions = append(c.auxFunctions, fnDef)
+
+	return fmt.Sprintf("%s(arena, NULL, NULL)", fnName), nil
 }

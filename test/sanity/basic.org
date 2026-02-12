@@ -1,0 +1,2 @@
+"Hello" -> @stdout;
+1 + 2;

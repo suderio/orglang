@@ -9,29 +9,35 @@ import (
 
 // Precedence levels
 const (
-	_ int = iota
-	LOWEST
-	EQUALS      // ==
-	LESSGREATER // > or <
-	SUM         // +
-	PRODUCT     // *
-	PREFIX      // -X or !X
-	CALL        // myFunction(X)
-	INDEX       // array[index]
+	_           int = iota * 10
+	LOWEST          = 0
+	STMT            = 0   // ;
+	FLOW            = 50  // ->
+	COMMA_LVL       = 60  // ,
+	BINDING         = 80  // :
+	DEFAULT         = 100 // Custom
+	EQUALS          = 150 // ==
+	SUM             = 200 // +
+	PRODUCT         = 300 // *
+	COMPOSE_LVL     = 400 // o
+	POWER_LVL       = 500 // ^
+	CALL            = 800 // . or ?
+	PREFIX_LVL      = 900 // @ ~ -
 )
 
 // BindingPower defines the left and right binding power for an operator
 // Exported so users or tools can introspect it
 func PrecedenceLevels() map[string]int {
 	return map[string]int{
-		"LOWEST":      LOWEST,
-		"EQUALS":      EQUALS,
-		"LESSGREATER": LESSGREATER,
-		"SUM":         SUM,
-		"PRODUCT":     PRODUCT,
-		"PREFIX":      PREFIX,
-		"CALL":        CALL,
-		"INDEX":       INDEX,
+		"LOWEST":  LOWEST,
+		"BINDING": BINDING,
+		"COMMA":   COMMA_LVL,
+		"FLOW":    FLOW,
+		"EQUALS":  EQUALS,
+		"SUM":     SUM,
+		"PRODUCT": PRODUCT,
+		"PREFIX":  PREFIX_LVL,
+		"CALL":    CALL,
 	}
 }
 
@@ -63,6 +69,9 @@ func New(l *lexer.CustomLexer) *Parser {
 
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefix(token.IDENT, p.parseIdentifier)
+	p.registerPrefix(token.THIS, p.parseIdentifier)
+	p.registerPrefix(token.LEFT, p.parseIdentifier)
+	p.registerPrefix(token.RIGHT, p.parseIdentifier)
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
 	p.registerPrefix(token.FLOAT, p.parseDecimalLiteral)
 	p.registerPrefix(token.STRING, p.parseStringLiteral)
@@ -74,14 +83,18 @@ func New(l *lexer.CustomLexer) *Parser {
 	p.registerPrefix(token.LBRACE, p.parseBlockLiteral)
 	p.registerPrefix(token.LBRACKET, p.parseListLiteral)
 	p.registerPrefix(token.TRUE, p.parseBoolean)
+	p.registerPrefix(token.TRUE, p.parseBoolean)
 	p.registerPrefix(token.FALSE, p.parseBoolean)
+	p.registerPrefix(token.RESOURCE, p.parseResourceLiteral)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
 	p.registerInfix(token.MINUS, p.parseInfixExpression)
 	p.registerInfix(token.SLASH, p.parseInfixExpression)
 	p.registerInfix(token.ASTERISK, p.parseInfixExpression)
+	p.registerInfix(token.POWER, p.parseInfixExpression) // Register **
 	p.registerInfix(token.EQ, p.parseInfixExpression)
+	p.registerInfix(token.COLON, p.parseInfixExpression) // Register :
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
@@ -90,6 +103,10 @@ func New(l *lexer.CustomLexer) *Parser {
 	p.registerInfix(token.LBRACE, p.parseBlockLiteralInfix)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.ARROW, p.parseInfixExpression)
+	p.registerInfix(token.AT, p.parseInfixExpression) // args @ sys
+	p.registerInfix(token.DOT, p.parseInfixExpression)
+	p.registerInfix(token.COMMA, p.parseInfixExpression)
+	p.registerInfix(token.QUESTION, p.parseInfixExpression)
 
 	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()
@@ -185,7 +202,7 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 
 	p.nextToken()
 
-	expression.Right = p.parseExpression(PREFIX)
+	expression.Right = p.parseExpression(PREFIX_LVL)
 
 	return expression
 }
@@ -197,9 +214,15 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 		Left:     left,
 	}
 
-	precedence := p.curPrecedence()
+	// Get Right Binding Power for the operator
+	rbp := LOWEST
+	if power, ok := p.bindingPowers[p.curToken.Type]; ok {
+		if power.Infix != nil {
+			rbp = power.Infix.Right
+		}
+	}
 	p.nextToken()
-	expression.Right = p.parseExpression(precedence)
+	expression.Right = p.parseExpression(rbp)
 
 	return expression
 }
@@ -207,6 +230,28 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.nextToken()
 	exp := p.parseExpression(LOWEST)
+
+	// Check for comma -> Tuple
+	if p.peekTokenIs(token.COMMA) {
+		// It's a tuple! Return as ListLiteral for now?
+		// Or create a specific TupleLiteral?
+		// For simplicity/dynamic typing, ListLiteral is fine for the runtime.
+		// [a, b] vs (a, b) -> both OrgList.
+
+		lit := &ast.ListLiteral{Token: p.curToken}
+		lit.Elements = []ast.Expression{exp}
+
+		for p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+			p.nextToken()
+			lit.Elements = append(lit.Elements, p.parseExpression(LOWEST))
+		}
+
+		if !p.expectPeek(token.RPAREN) {
+			return nil
+		}
+		return lit
+	}
 
 	if !p.expectPeek(token.RPAREN) {
 		return nil
@@ -252,12 +297,28 @@ func (p *Parser) parseBlockLiteral() ast.Expression {
 	// Let's implement this strategy.
 
 	block := &ast.BlockLiteral{Token: p.curToken}
-	// This function is for Prefix `{`. So no Left BP.
+	block.Statements = []ast.Statement{}
 
 	p.nextToken() // eat {
-	block.Body = p.parseExpression(LOWEST)
 
-	if !p.expectPeek(token.RBRACE) {
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		stmt := p.parseStatement()
+		if stmt != nil {
+			block.Statements = append(block.Statements, stmt)
+		}
+		p.nextToken()
+	}
+
+	// Check for trailing BP (handled by caller? No, parsing stops at })
+	// If parser stops at }, next token is }.
+	// We consumed nextToken in loop check?
+	// Loop: !curTokenIs(RBRACE).
+	// If curToken is RBRACE, loop stops.
+	// So we don't need expectPeek(RBRACE) if we are already there.
+	// But standard pattern is loop then expect peek?
+	// parseBlockStatement uses !curTokenIs(RBRACE). So when loop ends, curToken IS RBRACE (or EOF).
+
+	if !p.curTokenIs(token.RBRACE) {
 		return nil
 	}
 
@@ -305,11 +366,19 @@ func (p *Parser) parseBlockLiteralInfix(left ast.Expression) ast.Expression {
 
 	block := &ast.BlockLiteral{Token: p.curToken} // Token is {
 	block.LeftBP = intLit.Value
+	block.Statements = []ast.Statement{}
 
 	p.nextToken() // eat {
-	block.Body = p.parseExpression(LOWEST)
 
-	if !p.expectPeek(token.RBRACE) {
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		stmt := p.parseStatement()
+		if stmt != nil {
+			block.Statements = append(block.Statements, stmt)
+		}
+		p.nextToken()
+	}
+
+	if !p.curTokenIs(token.RBRACE) {
 		return nil
 	}
 
@@ -339,19 +408,51 @@ func (p *Parser) parseListLiteral() ast.Expression {
 
 	// Loop until ]
 	for !p.peekTokenIs(token.RBRACKET) && p.curToken.Type != token.EOF {
-		// Assume space separator or comma (optional)
-		if p.peekTokenIs(token.COMMA) {
+		// Commas are now operators, so if we see one, it might be part of an expression OR a separator.
+		// If it's a separator, we skip it only if the previous expression DID NOT consume it.
+		// Actually, in a block [ expr1 expr2 ], they are space-separated.
+		// If the user types [ 1, 2 ], parseExpression(LOWEST) will consume 1, 2.
+		// So we only need to move to next if peek is NOT ]
+		if !p.peekTokenIs(token.RBRACKET) {
 			p.nextToken()
+			lit.Elements = append(lit.Elements, p.parseExpression(LOWEST))
 		}
-
-		p.nextToken()
-		lit.Elements = append(lit.Elements, p.parseExpression(LOWEST))
 	}
 
 	if !p.expectPeek(token.RBRACKET) {
 		return nil
 	}
 
+	return lit
+}
+
+func (p *Parser) parseResourceLiteral() ast.Expression {
+	lit := &ast.ResourceLiteral{Token: p.curToken}
+
+	if !p.expectPeek(token.LBRACKET) {
+		return nil
+	}
+
+	// Parse the body as a ListLiteral
+	// We delegate to parseListLiteral, but we need to ensure curToken is LBRACKET
+	// parseListLiteral expects curToken to be LBRACKET.
+	// expectPeek advanced us to LBRACKET.
+
+	// Re-use parseListLiteral logic?
+	// parseListLiteral starts with `lit := &ast.ListLiteral{Token: p.curToken}`
+	// `p.curToken` is now `[`.
+
+	listExp := p.parseListLiteral()
+	if listExp == nil {
+		return nil
+	}
+
+	listLit, ok := listExp.(*ast.ListLiteral)
+	if !ok {
+		return nil
+	}
+
+	lit.Body = listLit
 	return lit
 }
 
@@ -403,6 +504,10 @@ func (p *Parser) peekPrecedence() int {
 		}
 	}
 	return LOWEST
+}
+
+func (p *Parser) curTokenIs(t token.TokenType) bool {
+	return p.curToken.Type == t
 }
 
 func (p *Parser) peekTokenIs(t token.TokenType) bool {

@@ -185,15 +185,10 @@ func (ll *ListLiteral) String() string {
 }
 
 type BlockLiteral struct {
-	Token token.Token // '{'
-	Body  Expression  // Single expression/statement list?
-	// Spec says Block ::= (INTEGER)? "{" Expression "}" (INTEGER)?
-	// Usually Expression is a Statement list or a single Expression?
-	// "Program ::= Statement*", "Statement ::= Expression ';'"
-	// So Block body is likely Expression (which can be a Sequence/BlockExpression?)
-	// For now, single Expression.
-	LeftBP  string // Optional binding power (as string for now "700")
-	RightBP string // Optional
+	Token      token.Token // '{'
+	Statements []Statement
+	LeftBP     string // Optional
+	RightBP    string // Optional
 }
 
 func (bl *BlockLiteral) expressionNode()      {}
@@ -204,13 +199,32 @@ func (bl *BlockLiteral) String() string {
 		out.WriteString(bl.LeftBP)
 	}
 	out.WriteString("{ ")
-	if bl.Body != nil {
-		out.WriteString(bl.Body.String())
+	for _, s := range bl.Statements {
+		out.WriteString(s.String())
 	}
 	out.WriteString(" }")
 	if bl.RightBP != "" {
 		out.WriteString(bl.RightBP)
 	}
+	return out.String()
+}
+
+type ResourceLiteral struct {
+	Token token.Token
+	// Resource body is a list of Key-Value pairs (setup, step, teardown)
+	// We can reuse ListLiteral or simplify.
+	// The resource syntax is `resource [ ... ]`.
+	// The content is a ListLiteral.
+	Body *ListLiteral
+}
+
+func (rl *ResourceLiteral) expressionNode()      {}
+func (rl *ResourceLiteral) TokenLiteral() string { return rl.Token.Literal }
+func (rl *ResourceLiteral) String() string {
+	var out bytes.Buffer
+	out.WriteString(rl.TokenLiteral())
+	out.WriteString(" ")
+	out.WriteString(rl.Body.String())
 	return out.String()
 }
 

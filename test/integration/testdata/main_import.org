@@ -1,0 +1,8 @@
+# Main Module
+math : "math.org" @ org;
+
+# Call add
+res : math.add([10 5]);
+
+print(res);
+print("\n");

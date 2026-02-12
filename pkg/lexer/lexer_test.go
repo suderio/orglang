@@ -52,7 +52,7 @@ pi : 3.14;
 		{token.SEMICOLON, ";"},
 		// { right + 1 };
 		{token.LBRACE, "{"},
-		{token.IDENT, "right"},
+		{token.RIGHT, "right"},
 		{token.PLUS, "+"},
 		{token.INT, "1"},
 		{token.RBRACE, "}"},

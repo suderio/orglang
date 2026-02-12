@@ -206,6 +206,8 @@ func (l *CustomLexer) NextToken() token.Token {
 			}
 
 			switch literal {
+			case "?":
+				tok.Type = token.QUESTION
 			case "~":
 				tok.Type = token.NOT
 			case "->":
@@ -307,6 +309,34 @@ func (l *CustomLexer) readNumber() string {
 }
 
 func (l *CustomLexer) readString() string {
+	if l.peekChar() == '"' && l.peekCharAhead(2) == '"' {
+		// Multiline string """
+		l.readChar() // eat second "
+		l.readChar() // eat third "
+		l.readChar() // consume possible newline after opening quotes
+
+		startPos := l.position
+		for {
+			if l.ch == '"' && l.peekChar() == '"' && l.peekCharAhead(2) == '"' {
+				break
+			}
+			if l.ch == 0 {
+				break
+			}
+			l.readChar()
+		}
+
+		raw := l.input[startPos:l.position]
+
+		// Consume closing quotes
+		l.readChar()
+		l.readChar()
+		l.readChar()
+
+		return stripIndentation(raw)
+	}
+
+	// Single line string
 	position := l.position + 1
 	for {
 		l.readChar()
@@ -315,10 +345,51 @@ func (l *CustomLexer) readString() string {
 		}
 	}
 	// Check if we stopped at a quote and consume it
+	content := l.input[position:l.position]
 	if l.ch == '"' {
 		l.readChar() // Consume the closing quote
 	}
-	return l.input[position : l.position-1] // Return content without quotes
+	return content
+}
+
+func stripIndentation(s string) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) == 0 {
+		return ""
+	}
+
+	// Find minimum common indentation (ignoring empty lines)
+	minIndent := -1
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		indent := 0
+		for i := 0; i < len(line) && (line[i] == ' ' || line[i] == '\t'); i++ {
+			indent++
+		}
+		if minIndent == -1 || indent < minIndent {
+			minIndent = indent
+		}
+	}
+
+	if minIndent <= 0 {
+		return strings.TrimSuffix(s, "\n")
+	}
+
+	var result strings.Builder
+	for i, line := range lines {
+		if len(line) >= minIndent {
+			result.WriteString(line[minIndent:])
+		} else {
+			result.WriteString(strings.TrimSpace(line))
+		}
+		if i < len(lines)-1 {
+			result.WriteByte('\n')
+		}
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
 }
 
 func (l *CustomLexer) peekCharAhead(n int) byte {

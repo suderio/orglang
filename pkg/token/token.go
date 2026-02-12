@@ -34,9 +34,13 @@ const (
 	DOT       = "."
 
 	// Keywords / Reserved (if any, for now purely contextual)
-	TRUE  = "true"
-	FALSE = "false"
-	ERROR = "Error"
+	TRUE     = "true"
+	FALSE    = "false"
+	ERROR    = "Error"
+	RESOURCE = "resource"
+	THIS     = "this"
+	LEFT     = "left"
+	RIGHT    = "right"
 
 	// Special Operators
 	AT          = "@"
@@ -48,6 +52,9 @@ const (
 	PIPE        = "|>"
 	COMPOSE     = "o"
 	BINDING_TAG = "BINDING_TAG" // !123
+
+	// Conditional / Access
+	QUESTION = "?"
 
 	// Comparison
 	EQ     = "="
@@ -76,9 +83,12 @@ const (
 )
 
 var keywords = map[string]TokenType{
-	"true":  TRUE,
-	"false": FALSE,
-	"Error": ERROR,
+	"true":     TRUE,
+	"false":    FALSE,
+	"resource": RESOURCE,
+	"this":     THIS,
+	"left":     LEFT,
+	"right":    RIGHT,
 }
 
 func LookupIdent(ident string) TokenType {

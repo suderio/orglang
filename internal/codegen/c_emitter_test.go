@@ -23,7 +23,7 @@ func TestCEmitter(t *testing.T) {
 		t.Fatalf("parser errors: %v", p.Errors())
 	}
 
-	emitter := NewCEmitter()
+	emitter := NewCEmitter(nil)
 	output, err := emitter.Generate(program)
 	if err != nil {
 		t.Fatalf("emitter error: %v", err)

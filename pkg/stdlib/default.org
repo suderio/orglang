@@ -1,0 +1,29 @@
+# Default Library
+# Implicitly loaded
+
+# Sentinel Error Value
+Error : "Error";
+
+stdout : resource [
+    step: { 
+        ["write" 1 args -1] @ sys 
+    }
+];
+
+print : { args -> @stdout };
+
+stdin : resource [
+    # Placeholder for stdin
+    setup: { },
+    
+    # Next pulls data from FD 0
+    next: {
+        # Alloc 64 bytes (small buffer for testing chunks)
+        buf : 64 @ mem;
+        # Read into buffer (returns count)
+        n : ["read" 0 buf 64] @ sys;
+        
+        # If n > 0 return buf, else return Error
+        (n > 0) ? [ "true": buf "false": Error ];
+    }
+];

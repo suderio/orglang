@@ -180,19 +180,19 @@ library\'.
 
 ### Primitive
 
-  Operator        Description           Example                        
-  --------------- -------------------------- ---------------------------
-  `.`             Table filter              `table.key`                    
-  `@`             Unit                      `"Hello World" -> @stdout`      
-  `?`             Test (truthy?)            `(1 = 0) ?`                    
-  `??`            Error Test                `x ?? 42`                      
-  `?:`            Elvis (falsey?)           `x ?: 42`                      
-  `->`            Broadcast Map             `[1 2 3] -> sum`               
-  `-<`            Balanced Map              `[1 2 3] -< [sum1 sum2]`       
-  `-<>`           Join Map                  `[1 2 3] -<> sum`              
-  `o`             Compose                   `g o f`                        
-  `|>`            Partial application       `add1: 1 |> +`
-  `N{, }N`        Left/Right Binding Power  `501{right - left}502`
+  |Operator       | Description               | Example                        
+  |---------------|---------------------------|--------------------------------
+  |`.`            | Table Value Access        |`table.key` (returns thunk)                    
+  |`@`            | Unit                      |`"Hello World" -> @stdout`      
+  |`?`            | Table Eval Access         |`table ? key` (evaluates thunk)                    
+  |`??`           | Error Test                |`x ?? 42`                      
+  |`?:`           | Elvis (falsey?)           |`x ?: 42`                      
+  |`->`           | Broadcast Map             |`[1 2 3] -> sum`               
+  |`-<`           | Balanced Map              |`[1 2 3] -< [sum1 sum2]`       
+  |`-<>`          | Join Map                  |`[1 2 3] -<> sum`              
+  |`o`            | Compose                   |`g o f`                        
+  |`|>`           | Partial application       |`add1: 1 |> +`
+  |`N{, }N`       | Left/Right Binding Power  |`501{right - left}502`
 
 ### Precedence Table
 
@@ -217,7 +217,8 @@ Here is the definitive binding power table for **OrgLang**.
 | `*`, `/` | Mult / Division | 300 | 301 | Left |
 | `o` | Composition | 400 | 401 | Left |
 | `^` | Exponentiation | 501 | 500 | **Right** |
-| `.` | Evaluative Lookup | 800 | 801 | Left |
+| `^` | Exponentiation | 501 | 500 | **Right** |
+| `.`, `?` | Access / Eval Lookup | 800 | 801 | Left |
 | `~`, `@`, `-` | Unary (Prefix) | 0 | 900 | N/A (High) |
 
 ### Key Design Decisions:
@@ -249,68 +250,68 @@ This allows the user to place their custom "Molecular" operators anywhere in the
 
 Arithmetic operators always return a number (integer or decimal).
 
-  ---------- ---------------- ----------
-  Operator   Description      Example
-  --------   --------------   --------
-  `+`        Addition         `3 + 2`
-  `-`        Subtraction      `5 - 1`
-  `*`        Multiplication   `4 * 2`
-  `/`        Division         `8 / 4`
-  `%`        Modulo           `5 % 2`
-  `**`        Exponentiation  `2 ** 3`
-  ---------- ---------------- ----------
+  |Operator   | Description      | Example
+  |---------- | ---------------- | --------
+  |`+`       | Addition         | `3 + 2`
+  |`-`       | Subtraction      | `5 - 1`
+  |`*`       | Multiplication   | `4 * 2`
+  |`/`       | Division         | `8 / 4`
+  |`%`       | Modulo           | `5 % 2`
+  |`**`      | Exponentiation   | `2 ** 3`
+
 
 ### Extended Assignment
 
-  Operator    Description                     Example
-  ----------- ------------------------------- -----------
-  `:+`        Addition and Assignment         `x :+ 2`
-  `:-`        Subtraction and Assignment      `x :- 1`
-  `:*`        Multiplication and Assignment   `x :* 3`
-  `:/`        Division and Assignment         `x :/ 4`
-  `:%`        Modulo and Assignment           `x :% 5`
-  `--`        Increment and Assignment        `--x`
-  `++`        Decrement and Assignment        `++x`
-  `:>>`       Right Shift and Assignment      `x :>> 5`
-  `:<<`       Left Shift and Assignment       `x :<< 5`
-  `:&`        AND and Assignment              `x :& y`
-  `:^`        XOR and Assignment              `x :^ y`
-  `:|~`       OR and Assignment               `x :\ | y`
+  |Operator   | Description                     | Example
+  |---------- | ------------------------------- | -----------
+  |`:+`      | Addition and Assignment         | `x :+ 2`
+  |`:-`      | Subtraction and Assignment      | `x :- 1`
+  |`:*`      | Multiplication and Assignment   | `x :* 3`
+  |`:/`      | Division and Assignment         | `x :/ 4`
+  |`:%`      | Modulo and Assignment           | `x :% 5`
+  |`--`      | Increment and Assignment        | `--x`
+  |`++`      | Decrement and Assignment        | `++x`
+  |`:>>`     | Right Shift and Assignment      | `x :>> 5`
+  |`:<<`     | Left Shift and Assignment       | `x :<< 5`
+  |`:&`      | AND and Assignment              | `x :& y`
+  |`:^`      | XOR and Assignment              | `x :^ y`
+  |`:\|`      | OR and Assignment               | `x :| y`
+  |`:~`      | Bitwise NOT and Assignment      | `x :~ 1`
 
 ### Logical
 
 Logical operators always return a Boolean.
 
-  Operator   Description         Example
-  ---------- ------------------- -----------------
-  `&&`       Short-circuit AND   `true && false`
-  `||`       Short-circuit OR    `true || false`
-  `&`        Bitwise AND         `x & y`
-  `|`        Bitwise OR          `x | y`
-  `^`        Bitwise XOR         `x ^ y`
-  `~`        NOT                 `~x`
+  |Operator   | Description         | Example
+  |---------- | ------------------- | -----------------
+  |`&&`      | Short-circuit AND   | `true && false`
+  |`\|\|`      | Short-circuit OR    | `true \|\| false`
+  |`&`       | Bitwise AND         | `x & y`
+  |`\|`       | Bitwise OR          | `x \| y`
+  |`^`       | Bitwise XOR         | `x ^ y`
+  |`~`       | NOT                 | `~x`
 
 ### Comparison
 
 Comparison operators always return a Boolean.
 
-  Operator     Description                Example
-  ------------ -------------------------- ----------
-  `=`          Equal to                   `x = y`
-  `<>`, `~=`   Not equal to               `x <> y`
-  `<`          Less than                  `x < y`
-  `<=`         Less than or equal to      `x <= y`
-  `>`          Greater than               `x > y`
-  `>=`         Greater than or equal to   `x >= y`
+  |Operator     | Description                | Example
+  |------------ | -------------------------- | ----------
+  |`=`         | Equal to                   | `x = y`
+  |`<>`, `~=`  | Not equal to               | `x <> y`
+  |`<`         | Less than                  | `x < y`
+  |`<=`        | Less than or equal to      | `x <= y`
+  |`>`         | Greater than               | `x > y`
+  |`>=`        | Greater than or equal to   | `x >= y`
 
 Care must be taken when doing comparison chaining. Since every comparison operator returns a Boolean, the result of a comparison chain is the result of the last comparison.
 
 ### Miscellaneous
 
-  Operator   Description           Example
-  ---------- --------------------- ---------------------
-  `$`        String substitution   `"Hello $0" $ [42]`
-  `..`       Numeric range         `1..5`
+  |Operator   | Description           | Example
+  |---------- | --------------------- | ---------------------
+  |`$`        | String substitution   | `"Hello $0" $ [42]`
+  |`..`       | Numeric range         | `1..5`
 
 ### Tables
 
@@ -346,25 +347,26 @@ Care must be taken when doing comparison chaining. Since every comparison operat
     # result: 1
     ```
 
-Trying to access a key that does not exist returns `Error`.
+    Trying to access a key that does not exist returns `Error`.
 
-``` orglang
-table : [1 2 3];
-result : table.4;
-# result: Error
-```
+    ``` orglang
+    table : [1 2 3];
+    result : table.4;
+    # result: Error
+    ```
 
-4. Laziness of values
+4.  Laziness of values
 
-Values on tables are not evaluated until they are accessed. This is
+    Values on tables are not evaluated until they are accessed. This is
 different from functions, which are evaluated when they are called.
 
-A table is just a collection of thunks.
+    A table is just a collection of thunks.
 
-``` orglang
-x: [1 2 (1 + 3)] # 1 + 3 is not evaluated
-x.2 # 4
-# The `.` operator selects the element and evaluates it.
+    ``` orglang
+    x: [1 2 (1 + 3)] # 1 + 3 is not evaluated
+    x.2 # 4
+    # The `.` operator selects the element and evaluates it.
+    ```
 
 ### Mutability
 
@@ -375,11 +377,20 @@ result : table.0 : 5;
 # result: 5
 ```
 
+The `?` operator is also used to check if a key exists in a table. The main difference is that it evaluates the key. Therefore it acts as a conditional operator. It also changes the order of arguments: first the condition, then the table.
+
+``` orglang
+table : [true: "odd" false: "even"];
+result : (35 % 2 == 1) ? table
+# result: "odd"
+```
+
+
 ### Functions and Operators
 
 1.  Defining Unary Operators
 
-    Custom operators can be defined using '{}':
+    Custom operators can be defined using '{}', the keywords `left` and `right` are optional:
 
     ``` orglang
     increment : {right + 1};
@@ -465,10 +476,10 @@ result : table.0 : 5;
   ----------- ----------------- ------------------------------------------------------------
   Primitive   Abstraction       Role in the Runtime
   ----------- ----------------- ------------------------------------------------------------
-  \@handle    I/O Channel       Unique interface for Files and Sockets.
-  \@mem       Space Channel     Addressable memory treated as a seekable stream.
-  \@signal    Event Channel     Temporal triggers (`@clock`) or system (`@metadata`).
-  \@sys       Event Channel     Direct syscall invocation (ex: read, write, open).
+  @handle    I/O Channel       Unique interface for Files and Sockets.
+  @mem       Space Channel     Addressable memory treated as a seekable stream.
+  @signal    Event Channel     Temporal triggers (`@clock`) or system (`@metadata`).
+  @sys       Event Channel     Direct syscall invocation (ex: read, write, open).
   ----------- ----------------- ------------------------------------------------------------
 
 ### `@` (The Resource Atom)
@@ -545,16 +556,12 @@ When you apply a mapping operation to a stream of data using lazy evaluation, yo
 
 Here are the specific consequences for the performance and execution model:
 
----
-
 ### 1. Execution Model: The "Pull" Pipeline
 
 In an eager model, a map operation would transform the entire list before moving to the next node. In the OrgLang lazy model, the mapping operation creates a **Chain of Thunks**.
 
 * **How it works:** When `@stdout` asks for data, it sends a "pull" signal up the chain. The Map node receives this, pulls one element from the source, applies the function `{ }`, and passes the result down.
 * **The Benefit:** You achieve **Constant Memory Usage**. Whether you are processing 10 items or 10 billion, the memory footprint remains the same because only one "frame" of the map is active at a time.
-
----
 
 ### 2. Performance: Thunk Fusing (Zero-Copy)
 
@@ -565,16 +572,12 @@ One of the biggest performance wins in lazy mapping is **Operator Fusing**. If y
 * **OrgLang Lazy Model:** The Go compiler "fuses" these into a single C function. Instead of passing data between functions, it generates a single loop that performs `(x + 1) * 2`.
 * **Result:** You eliminate the overhead of function calls and intermediate memory writes, reaching **raw C loop speeds**.
 
----
-
 ### 3. Consequence: Latency vs. Throughput
 
 Laziness changes the "rhythm" of your program:
 
 * **Lower Initial Latency:** The first item reaches the `@stdout` almost instantly. You don't have to wait for the entire map to finish.
 * **Overhead per Item:** There is a tiny "bookkeeping" cost to manage the thunk state for each item. In high-throughput scenarios (millions of small integers), this overhead might be visible compared to a hand-optimized C array loop.
-
----
 
 ### 4. Memory Management: Arena Lifetimes
 
@@ -583,8 +586,6 @@ In a lazy map, the **Arena** becomes a moving window.
 * **The Risk:** If a mapping function allocates memory (e.g., creating a string) and that string is passed down the pipeline, the memory must stay alive until the final sink (`@stdout`) is done with it.
 * **The Teardown:** OrgLang handles this by linking the "Frame Life" to the Arena. Once the `@stdout` finishes processing a frame, the "Frame Arena" is reset. This prevents memory from ballooning during long-running streams.
 
----
-
 ### 5. Interaction with Parallelism (`-> [ B, C ]`)
 
 This is where laziness gets complex. If you fork a stream to two parallel nodes:
@@ -592,8 +593,6 @@ This is where laziness gets complex. If you fork a stream to two parallel nodes:
 1. The "Pull" signal comes from two different places.
 2. The Lazy Map must now act as a **Buffer**. It pulls once from the source and "holds" the value until both B and C have consumed it.
 3. **Performance Cost:** This introduces a synchronization primitive (a mutex or a semaphore) in the C runtime to ensure the lazy value is not evaluated twice or freed too early.
-
----
 
 ### Summary Table: Eager vs. Lazy Mapping
 
@@ -610,3 +609,108 @@ For a systems language like **OrgLang**, laziness in mapping is a net win. It al
 
 The "cost" of managing thunks is heavily offset by **Cache Locality**: because the data is processed through the entire pipeline one piece at a time, it often stays in the CPU's L1/L2 cache, avoiding the massive performance penalty of hitting Main Memory (RAM).
 
+## Standard Library
+
+In **OrgLang**, `@stdin` and `@stdout` are not "baked-in" magic; they are standard **Resources** built on top of the `@sys` primitives. This is the beauty of the language: the system's "Standard Library" is written in the language itself.
+
+Since `@stdin` acts as a **Source** (producing pulses) and `@stdout` acts as a **Sink** (consuming pulses), their implementations highlight the two sides of the resource lifecycle.
+
+### 1. Implementing `stdin` (The Streaming Source)
+
+Standard input is a resource that continuously "pulls" data from the OS file descriptor `0`.
+
+```orglang
+stdin : resource [
+    setup: {
+        # FD 0 is the universal constant for stdin
+        fd : 0;
+        # Allocate a 4KB buffer in the current Arena
+        buffer : 4096 @ mem;
+    }
+
+    step: {
+        # Ask the OS to read data into our buffer
+        bytes_read : ("read", fd, buffer, 4096) @sys;
+
+        # If bytes_read <= 0, the stream is closed (None)
+        # Otherwise, emit the buffer
+        [ true : Error; false : buffer; ] . (bytes_read <= 0);
+    }
+
+    teardown: {
+        # We don't usually close stdin, but we could if needed
+        # (close, fd) @sys;
+    }
+]
+
+```
+
+### 2. Implementing `stdout` (The Pulsing Sink)
+
+Standard output is slightly different. In its `step` block, it doesn't "generate" data; it **receives** it via the `right` slot (the data coming from the pipeline).
+
+```orglang
+stdout : resource [
+    setup: {
+        # FD 1 is standard output
+        fd : 1;
+    }
+
+    step: {
+        # 'right' is the pulse coming from the previous node (e.g., a string)
+        # We calculate its length (right + 0)(this could be a helper function)
+        len : right + 0;
+        
+        # Push the data to the console
+        ("write", fd, right, len) @sys;
+        
+        # Sinks usually pass the data through to allow chaining
+        right;
+    }
+
+    teardown: {
+        # Ensure everything is flushed if the OS requires it
+        (fsync, 1) @sys;
+    }
+]
+
+```
+
+### 3. Usage: The Flow in Action
+
+Once these are defined, you can connect them using the `->` operator. The runtime handles the coordination:
+
+```orglang
+# Echo program: reads from keyboard, sends to screen
+@stdin -> @stdout;
+
+```
+
+**What happens under the hood:**
+
+1. The runtime calls `@stdin.step()`.
+2. `@stdin` performs the `@sys("read")`.
+3. The resulting `buffer` is passed as the `right` argument to `@stdout.step()`.
+4. `@stdout` performs the `@sys("write")`.
+5. The cycle repeats until `@stdin` returns `None`.
+
+
+### 4. Why this matters for the C Runtime
+
+When your Go compiler translates these to C, it uses the signatures we defined:
+
+* **Setup:** Becomes a `struct` containing `fd` and `buffer`.
+* **Step:** Becomes a function `OrgValue stdin_step(OrgContext* ctx, void* state, OrgValue input)`.
+* **Teardown:** Registered in the `OrgContext` to be called at the end.
+
+This architecture ensures that even the most basic I/O is **asynchronous** and **memory-safe** by default. If `@stdin` is waiting for a keypress, only that specific branch of the graph is paused—the rest of the OrgLang engine can keep ticking.
+
+### Final Check: The "File-to-Stdout" Pipeline
+
+Now we can see exactly why this works:
+`"/etc/passwd" -> @file -> @stdout;`
+
+1. `@file`'s `setup` opens the path.
+2. `@file`'s `step` reads chunks of the file.
+3. Each chunk flows into `@stdout`'s `step`.
+4. `@stdout` writes them to the terminal.

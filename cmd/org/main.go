@@ -10,11 +10,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
+	"orglang/internal/ast"
 	"orglang/internal/codegen"
 	"orglang/internal/parser"
 
 	// "orglang/internal/analysis" // TODO: Enable when analysis pass is ready
 	"orglang/pkg/lexer"
+	"orglang/pkg/stdlib"
 )
 
 var (
@@ -99,7 +101,15 @@ func compile(sourcePath, key string) error {
 		return fmt.Errorf("reading source: %w", err)
 	}
 
-	// 2. Lex & Parse
+	// 2. Lex & Parse Default Library
+	lDef := lexer.NewCustom(stdlib.DefaultLibrary)
+	pDef := parser.New(lDef)
+	progDef := pDef.ParseProgram()
+	if len(pDef.Errors()) > 0 {
+		return fmt.Errorf("default library parsing errors:\n%s", strings.Join(pDef.Errors(), "\n"))
+	}
+
+	// 3. Lex & Parse User Source
 	l := lexer.NewCustom(string(content))
 	p := parser.New(l)
 	program := p.ParseProgram()
@@ -108,12 +118,46 @@ func compile(sourcePath, key string) error {
 		return fmt.Errorf("parsing errors:\n%s", strings.Join(p.Errors(), "\n"))
 	}
 
+	// Merge Statements: Default Lib first
+	finalStmts := append(progDef.Statements, program.Statements...)
+	program.Statements = finalStmts
+
 	// 3. Semantic Analysis
 	// (Symbol table and flow graph would happen here)
 	// For now, simpler passes or skip if fully handled in parser/codegen
 
 	// 4. Codegen (C99)
-	emitter := codegen.NewCEmitter()
+	moduleLoader := func(path string) (*ast.Program, error) {
+		// Resolve relative to the current source file being compiled?
+		// CEmitter currently doesn't pass the "parent" path.
+		// For now, try as is, but if relative, try relative to sourcePath.
+		resolvedPath := path
+		if !filepath.IsAbs(path) {
+			resolvedPath = filepath.Join(filepath.Dir(sourcePath), path)
+		}
+
+		// Read Source
+		content, err := os.ReadFile(resolvedPath)
+		if err != nil {
+			// Fallback: try raw path (for stdlib or project root relative)
+			content, err = os.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("reading module %s: %w", path, err)
+			}
+		}
+
+		// Lex & Parse
+		l := lexer.NewCustom(string(content))
+		p := parser.New(l)
+		program := p.ParseProgram()
+
+		if len(p.Errors()) > 0 {
+			return nil, fmt.Errorf("parsing module %s errors:\n%s", path, strings.Join(p.Errors(), "\n"))
+		}
+		return program, nil
+	}
+
+	emitter := codegen.NewCEmitter(moduleLoader)
 	cCode, err := emitter.Generate(program)
 	if err != nil {
 		return fmt.Errorf("codegen error: %w", err)

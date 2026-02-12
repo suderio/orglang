@@ -24,28 +24,32 @@ func OperatorBindingPowers() map[token.TokenType]OperatorPower {
 	// Infix Operators
 	ops[token.EQ] = OperatorPower{Infix: bp(EQUALS, EQUALS)}
 	ops[token.NOT_EQ] = OperatorPower{Infix: bp(EQUALS, EQUALS)}
-	ops[token.LT] = OperatorPower{Infix: bp(LESSGREATER, LESSGREATER)}
-	ops[token.GT] = OperatorPower{Infix: bp(LESSGREATER, LESSGREATER)}
-	ops[token.LT_EQ] = OperatorPower{Infix: bp(LESSGREATER, LESSGREATER)}
-	ops[token.GT_EQ] = OperatorPower{Infix: bp(LESSGREATER, LESSGREATER)}
+	ops[token.LT] = OperatorPower{Infix: bp(EQUALS, EQUALS)}
+	ops[token.GT] = OperatorPower{Infix: bp(EQUALS, EQUALS)}
+	ops[token.LT_EQ] = OperatorPower{Infix: bp(EQUALS, EQUALS)}
+	ops[token.GT_EQ] = OperatorPower{Infix: bp(EQUALS, EQUALS)}
 	ops[token.PLUS] = OperatorPower{Infix: bp(SUM, SUM)}
+	ops[token.MINUS] = OperatorPower{
+		Prefix: bp(0, PREFIX_LVL),
+		Infix:  bp(SUM, SUM),
+	}
 	ops[token.SLASH] = OperatorPower{Infix: bp(PRODUCT, PRODUCT)}
 	ops[token.ASTERISK] = OperatorPower{Infix: bp(PRODUCT, PRODUCT)}
-	ops[token.POWER] = OperatorPower{Infix: bp(PRODUCT+1, PRODUCT)}
-	ops[token.LPAREN] = OperatorPower{Infix: bp(CALL, CALL), Prefix: bp(0, LOWEST)} // Grouped vs Call
-	ops[token.DOT] = OperatorPower{Infix: bp(CALL, CALL)}
-	ops[token.LBRACE] = OperatorPower{Infix: bp(CALL, CALL), Prefix: bp(0, LOWEST)} // Block
-	ops[token.ARROW] = OperatorPower{Infix: bp(LESSGREATER, LESSGREATER)}           // -> Flow
-
-	// Mixed Operators (Prefix and Infix)
-	ops[token.MINUS] = OperatorPower{
-		Prefix: bp(0, PREFIX), // -X
-		Infix:  bp(SUM, SUM),  // X - Y
+	ops[token.POWER] = OperatorPower{Infix: bp(POWER_LVL+1, POWER_LVL)} // Right-associative
+	ops[token.LPAREN] = OperatorPower{Infix: bp(CALL, CALL), Prefix: bp(0, LOWEST)}
+	ops[token.DOT] = OperatorPower{Infix: bp(CALL, CALL+1)} // Strong left
+	ops[token.QUESTION] = OperatorPower{Infix: bp(CALL, CALL+1)}
+	ops[token.LBRACE] = OperatorPower{Infix: bp(CALL, CALL), Prefix: bp(0, LOWEST)}
+	ops[token.ARROW] = OperatorPower{Infix: bp(FLOW, FLOW+1)}           // Left-associative
+	ops[token.COMMA] = OperatorPower{Infix: bp(COMMA_LVL, COMMA_LVL+1)} // Left-associative
+	ops[token.AT] = OperatorPower{
+		Prefix: bp(0, PREFIX_LVL),
+		Infix:  bp(CALL, CALL), // args @ sys
 	}
+	ops[token.COLON] = OperatorPower{Infix: bp(BINDING+1, BINDING)} // Right-associative (81, 80)
 
 	// Prefix Only
-	ops[token.NOT] = OperatorPower{Prefix: bp(0, PREFIX)}
-	ops[token.AT] = OperatorPower{Prefix: bp(0, PREFIX)}
+	ops[token.NOT] = OperatorPower{Prefix: bp(0, PREFIX_LVL)}
 
 	return ops
 }
