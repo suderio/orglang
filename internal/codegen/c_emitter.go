@@ -472,7 +472,7 @@ func (c *CEmitter) compileModule(path string) (string, error) {
 	finalBody := declsBuilder.String() + bodyBuilder.String()
 
 	if len(resultVars) == 0 {
-		finalBody += "    return NULL;\n"
+		finalBody += "    return org_list_make(arena, 0);\n"
 	} else {
 		args := strings.Join(resultVars, ", ")
 		finalBody += fmt.Sprintf("    return org_list_make(arena, %d, %s);\n", len(resultVars), args)

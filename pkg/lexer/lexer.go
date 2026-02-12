@@ -273,6 +273,10 @@ func (l *CustomLexer) NextToken() token.Token {
 				tok.Type = token.BIT_OR
 			case "^":
 				tok.Type = token.BIT_XOR
+			case "<<":
+				tok.Type = token.LSHIFT
+			case ">>":
+				tok.Type = token.RSHIFT
 			default:
 				tok.Type = token.LookupIdent(literal)
 			}
@@ -434,7 +438,29 @@ func isDigit(ch byte) bool {
 
 func isSymbolChar(ch byte) bool {
 	// ! $ % & * - + = ^ ~ ? / < > |
+	// ! $ % & * - + = ^ ~ ? / < > |
 	switch ch {
+	// ! is frequently a prefix operator (!true), so we should be careful.
+	// If ! is followed by a letter, it should probably be a separate operator token
+	// unless we want identifiers like `risk!` (Ruby style).
+	// But `!true` tokenizing as `!true` identifier is bad.
+	// For now, let's KEEP ! as a symbol char, but in readIdentifier, we might need a special check.
+	// Actually, `readIdentifier` is the problem.
+	// If the identifier STARTs with `!`, usage is likely prefix op.
+	// But OrgLang allows `!valid` as var name?
+	// Reference says: "must start with a letter ... or any of the following symbols: !"
+	// So `!variable` IS a valid identifier.
+	// `!false` IS a valid identifier.
+	// But `false` is a keyword.
+	// If `!false` is parsed as identifier, it's not `! false`.
+	// The user must write `! false` (with space) if they mean prefix NOT.
+	// UNLESS `!` is a delimiter.
+	// Reference says: "Operator Philosophy... Operators are strictly unary (prefix) or binary (infix)."
+	// And "Identifiers ... must start with ... ! ...".
+	// So `!false` IS an identifier.
+	// The user used `!false` in the test.
+	// They must use `! false` or `( ! false )`.
+	// I will fix `basic.org` to use `! false`.
 	case '!', '$', '%', '&', '*', '-', '+', '=', '^', '~', '?', '/', '<', '>', '|':
 		return true
 	}

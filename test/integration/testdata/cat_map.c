@@ -2,12 +2,12 @@
 #include <stdio.h>
 
 // Globals
-static OrgValue *org_var_print = NULL;
-static OrgValue *org_var_buf = NULL;
 static OrgValue *org_var_n = NULL;
 static OrgValue *org_var_stdin = NULL;
 static OrgValue *org_var_Error = NULL;
 static OrgValue *org_var_stdout = NULL;
+static OrgValue *org_var_print = NULL;
+static OrgValue *org_var_buf = NULL;
 
 
 // Auxiliary Functions

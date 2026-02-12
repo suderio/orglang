@@ -118,6 +118,8 @@ func New(l *lexer.CustomLexer) *Parser {
 	p.registerInfix(token.BIT_AND, p.parseInfixExpression)
 	p.registerInfix(token.BIT_OR, p.parseInfixExpression)
 	p.registerInfix(token.BIT_XOR, p.parseInfixExpression)
+	p.registerInfix(token.LSHIFT, p.parseInfixExpression)
+	p.registerInfix(token.RSHIFT, p.parseInfixExpression)
 
 	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()

@@ -81,6 +81,8 @@ const (
 	BIT_AND = "&"
 	BIT_OR  = "|"
 	BIT_XOR = "^"
+	LSHIFT  = "<<"
+	RSHIFT  = ">>"
 	// NOT     = "!" // Removed !
 )
 

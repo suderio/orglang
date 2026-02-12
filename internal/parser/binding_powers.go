@@ -54,6 +54,8 @@ func OperatorBindingPowers() map[token.TokenType]OperatorPower {
 	ops[token.BIT_AND] = OperatorPower{Infix: bp(PRODUCT, PRODUCT)}
 	ops[token.BIT_OR] = OperatorPower{Infix: bp(SUM, SUM)}
 	ops[token.BIT_XOR] = OperatorPower{Infix: bp(SUM, SUM)}
+	ops[token.LSHIFT] = OperatorPower{Infix: bp(SUM, SUM)}
+	ops[token.RSHIFT] = OperatorPower{Infix: bp(SUM, SUM)}
 
 	// Prefix Only
 	ops[token.NOT] = OperatorPower{Prefix: bp(0, PREFIX_LVL)}
