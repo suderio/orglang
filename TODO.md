@@ -11,6 +11,7 @@ Summary of pending issues and feature enhancements discovered during sanity test
     - [ ] Option B: Implement an "eager collection" operator (e.g., `!`) to convert Iterators to Tables (e.g., `(list -> map)! . 0`).
 - [ ] **Operator Orthogonality Review**: Review other non-short-circuit operators (`&`, `|`, `^`) to distinguish between bitwise and logical semantics, similar to the `!` vs `~` separation.
 - [ ] **Extended Assignment Operators**: Implement `:+`, `:-`, `:*`, `:/` etc., in the parser and runtime.
+- [ ] **Standard Library Expansion**: Add more built-in resources for file I/O, networking, and string manipulation.
 
 ## Implementation Gaps (Specification Sync)
 
@@ -23,11 +24,16 @@ Summary of pending issues and feature enhancements discovered during sanity test
     - [ ] Implement actual lazy thunks for table elements.
     - [ ] Differentiate `.` (Table Access - returns thunk) from `?` (Selection/Eval - evaluates).
 - [ ] **Comparison Chaining**: Refactor to support `x < y < z` returning the last comparison result as per spec.
+- [ ] **String Enhancements**:
+    - [ ] Implement `$N` (positional) and `$var` (variable) interpolation.
+    - [ ] Ensure strings are semantically Tables indexed by integers.
 - [ ] **Import Caching (Runtime)**: Implement a runtime cache for modules to prevent multiple executions of the same file (Singletons), aligning with the specification in the Build Model.
 - [ ] **Resource Lifecycle**: Ensure full `setup`, `step`, and `teardown` coordination in the C runtime for all resource interactions.
+
 - [ ] **Execution Model**: 
     - [ ] Implement proper `main` entry point lookup and execution.
     - [ ] Support implicit table creation for the entire source file.
+- [ ] **Resource Lifecycle**: Ensure full `setup`, `step`, and `teardown` coordination in the C runtime for all resource interactions.
 - [ ] **Standard Library Expansion**: 
     - [ ] Add more built-in resources for file I/O (`@file`), networking (`@net`), and string manipulation.
     - [ ] Implement string interpolation (`$N`, `$var`).

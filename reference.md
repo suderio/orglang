@@ -1,4 +1,4 @@
-# OrgLang Reference Manual
+# OrgLang Reference
 
 ## Introduction
 
@@ -15,10 +15,13 @@ OrgLang aims to provide a premium development experience where the code is as be
 This manual uses the following conventions:
 
 -   **Bold text** highlights key concepts and terms defined for the first time.
+
 -   `Monospace text` denotes identifiers, keywords, operator symbols, and literal values.
+
 -   Code examples are provided in blocks with syntax highlighting.
+
 -   Grammar specifications are written in **EBNF** (Extended Backus-Naur Form).
--   > [!NOTE]
+    > [!NOTE]
     > Alerts like this provide additional context, implementation details, or helpful tips.
 
 ## Lexical analysis
@@ -26,6 +29,7 @@ This manual uses the following conventions:
 Lexical analysis is the first stage of the OrgLang compiler. An OrgLang program is read as a sequence of characters, which are then grouped into meaningful units called **tokens**.
 
 The lexer (or tokenizer) performs this transformation by scanning the source text from beginning to end. It identifies various types of tokens:
+
 - **Identifiers and Keywords**: Symbolic names for variables and functions.
 
 - **Literals**: Constant values such as numbers and strings.
@@ -160,7 +164,8 @@ Multiline strings are enclosed in triple double quotes (`"""`). They can span mu
 To keep the source code clean, multiline strings automatically strip **common leading whitespace** (indentation) from all non-empty lines. The amount of whitespace removed is determined by the line with the least indentation.
 
 ```rust
-# The resulting string will have no leading spaces on "Line 1" and "Line 2"
+# The resulting string will have no leading spaces
+# on "Line 1" and "Line 2"
 doc : """
     Line 1
     Line 2
@@ -174,11 +179,14 @@ doc : """
 A fundamental design choice in OrgLang is that **Strings are semantically Tables** (ordered lists of characters). 
 
 - **Indexing**: A string can be indexed by integers starting at `0`. Accessing `s.0` returns the first character.
+
 - **Table Properties**: Because they are tables, operators like `->` for iteration treat strings as a stream of characters.
 
 ##### String Length and Orthogonality
 Strings behave like tables when used in arithmetic contexts:
+
 - **Numeric Value**: When used with arithmetic operators (like `+` or `-`), a string evaluates to its **length**.
+
 - **No Concatenation**: Unlike many languages, the `+` operator does **not** concatenate strings. Instead, it adds their lengths (or a string's length to a number).
 
 ```rust
@@ -219,7 +227,9 @@ Decimal literals represent non-integer numbers using a fixed decimal point notat
 A decimal literal consists of an integer part and a fractional part separated by a dot (`.`). 
 
 - **Digits on both sides**: For an unsigned number starting with a digit, there must be at least one digit on both sides of the dot (e.g., `3.14`).
+
 - **Lexical Distinction**: A number followed by a dot without a subsequent digit (e.g., `1.`) is lexically interpreted as an [Integer literal](#integer-literals) followed by the [Dot operator](#operators).
+
 - **No Scientific Notation**: OrgLang does not currently support scientific notation (e.g., `1e10`) in its literal syntax.
 
 ##### Signed Decimal Literals
@@ -239,7 +249,9 @@ Rational literals represent exact fractional numbers using a syntax that clearly
 A rational literal is formed by two integer literals separated by a forward slash (`/`).
 
 - **Numerator and Denominator**: Both the numerator and the denominator are integer literals (which can be positive or negative, as defined in [Integer literals](#integer-literals)).
+
 - **No Whitespace**: There must be no whitespace between the numerator, the slash, and the denominator.
+
 - **Zero Denominator**: A zero in the denominator is syntactically valid but will result in a runtime error (division by zero) during evaluation.
 
 ##### Examples
@@ -277,7 +289,9 @@ t3 : [1, 2, 3]; # Result is [[1 2 3]]
 
 ##### Implicit Indexing vs. Bindings
 A Table consists of a sequence of elements. These elements are categorized into two types:
+
 - **Bindings**: Pairs created using the binding operator (`:`). These are accessed by their key and **do not** consume a numeric index slot.
+
 - **Positional Elements**: All other expressions. These are assigned implicit numeric indexes (`0, 1, 2...`) based on their order of occurrence among other positional elements.
 
 ##### Mixed Content and Indexing
@@ -311,6 +325,7 @@ In OrgLang, almost every operation and structural construct is modeled as an **o
 OrgLang operators are strictly **unary** (prefix) or **binary** (infix). This strictness simplifies the language's grammar and execution model but introduces a different way of thinking about computation:
 
 - **Binding Power**: The behavior of an expression is determined by the binding power (precedence) of its operators. Operators with higher binding power "pull" operands closer than those with lower power.
+
 - **Everything is an Expression**: Operators don't just "perform actions"; they transform values and return new ones. This allows for deeply nested and highly expressive chains of computation.
 
 #### Limitations and Patterns
@@ -514,6 +529,7 @@ When an operator is called, the expression within the braces is evaluated. The o
 > [WARNING]
 > **Strict Binding Power Syntax**: When defining custom binding powers, there **must not be any whitespace** between the number and the brace.
 > - **Correct**: `op : 50{ ... }60;`
+>
 > - **Incorrect**: `op : 50 { ... } 60;`
 
 #### Operators on operators
@@ -1161,17 +1177,25 @@ config : [
 The comma is a binary operator that constructs a Table from its operands. It behaves differently depending on whether the left operand is already a Table.
 
 - **Atom, Atom**: Creates a new Table with two elements.
+
     - `1, 2` → `[1 2]`
+
 - **Table, Atom**: Appends the right operand to the left Table.
+
     - `[1 2], 3` → `[1 2 3]`
+
 - **Atom, Table**: Creates a new Table where the right operand is the second element (nesting).
+
     - `1, [2 3]` → `[1 [2 3]]`
+
 - **Table, Table**: Appends the right Table as a *single element* to the left Table (nesting).
+
     - `[1 2], [3 4]` → `[1 2 [3 4]]`
 
 > [!NOTE]
 > **Left-Associative**: Because the comma is left-associative, `1, 2, 3` is parsed as `(1, 2), 3`.
 > 1. `(1, 2)` becomes `[1 2]`
+>
 > 2. `[1 2], 3` becomes `[1 2 3]`
 > This makes it efficient for constructing lists.
 
@@ -1210,9 +1234,13 @@ In general, expressions are evaluated from left to right. This applies to functi
 
 1.  **Lazy Assignment / Thunks**
     The most critical exception in OrgLang is the **assignment operator** (`:`).
+
     -   **Rule**: The expression on the right side of an assignment is **NOT evaluated** at the moment of assignment.
+
     -   **Thunks**: Instead, it is stored as a "Thunk" (a suspended computation).
+
     -   **Evaluation**: The value is only computed when it is **used** (e.g., accessed via `.`, used in arithmetic, or printed).
+
     -   **Consequence**: The "type" of every assignment is effectively an `Expression` (or Thunk) until it is forced.
 
     ```rust
@@ -1222,12 +1250,16 @@ In general, expressions are evaluated from left to right. This applies to functi
     ```
 
 2.  **Short-Circuiting Operators**
+
     -   `&&` and `||`: The left operand is evaluated first. The right operand is evaluated **only if necessary**.
+
     -   `?`, `?:`, `??`: The condition (left) is evaluated first. Only the selected branch (right or fallback) is evaluated.
 
 3.  **Right-Associative Operators**
     For operators that are right-associative, the parsing groups them from right to left, but the *evaluation* of operands typically still happens left-to-right before the operator function is called, unless they are lazy constructions.
+
     -   **Assignment (`:`)**: `a : b : c` parses as `a : (b : c)`.
+
     -   **Exponentiation (`**`)**: `2 ** 3 ** 4` parses as `2 ** (3 ** 4)`.
 
 4.  **Unary Operators**
@@ -1265,6 +1297,7 @@ Assignment in OrgLang is fundamentally about **constructing Tables**. Since ever
 The colon operator `:` binds a value (the right operand) to a name (the left operand).
 
 -   **Semantics**: Creates a Pair `[Name Value]`. When occurring inside a Table constructor (including a source file), this Pair becomes a named entry in that Table.
+
 -   **Laziness**: As noted in [Evaluation Order](#evaluation-order), the value is stored as a **Thunk** and is not evaluated until used.
 
 ```rust
@@ -1305,12 +1338,16 @@ It is important to distinguish between **Runtime Primitives** (implemented in C)
 
 **1. Runtime Primitive (`@sys`)**
 Currently, OrgLang exposes a single, low-level primitive for system interaction: `@sys`.
+
 -   **Behavior**: It accepts a **Command List** where the first element is a string (e.g., "write", "read") and subsequent elements are arguments.
+
 -   **Purpose**: It acts as a direct bridge to C-level system calls.
 
 **2. Standard Library Resources**
 These are high-level abstractions built *using* the `@sys` primitive.
+
 -   `@stdout`: Wrapper around `["write" 1 ...] @ sys`.
+
 -   `@stdin`: Wrapper around `["read" 0 ...] @ sys`.
 
 ```rust
@@ -1327,9 +1364,13 @@ Future versions may introduce specialized primitives like `@file` or `@net` for 
 You can define your own resources using the `resource` keyword. A resource definition is a Table that acts as a blueprint, specifying how to handle the lifecycle of the effect.
 
 **Lifecycle Hooks**:
+
 -   `setup`: (Optional) Called when the resource is instantiated. Returns the initial state.
+
 -   `step`: (Optional) Called when data is pushed *into* the resource (via `->`).
+
 -   `next`: (Optional) Called when data is pulled *from* the resource.
+
 -   `teardown`: (Optional) Called when the resource is closed or goes out of scope.
 
 ```rust
@@ -1357,7 +1398,9 @@ log : @Logger; # Create an instance of Logger
 Resources are primarily used with Flux operators to move data.
 
 -   `->` (**Push**): Sends data to a resource's `step` function. `source -> @stdout`.
+
 -   `-<` (**Dispatch**): load-balances data across multiple resources.
+
 -   `-<>` (**Join**): Synchronizes multiple resource streams.
 
 #### Scoped Resources (`@arena`)
@@ -1365,7 +1408,9 @@ Resources are primarily used with Flux operators to move data.
 Scoped resources are a special pattern where a resource manages a memory arena for the duration of a flow. This allows for safe, high-performance heap allocation with deterministic teardown.
 
 -   **Arena**: The `@arena` resource creates a memory context. Any resources (like `@file` or `@net`) created "downstream" of an arena are tracked by it.
+
 -   **Middleware Pattern**: Arenas are often used as middleware in a flow chain to wrap the execution context.
+
 -   **Teardown**: When the flow ends or the scope is exited, the Arena automatically tears down all tracked resources in reverse order of creation.
 
 ```rust
@@ -1393,15 +1438,20 @@ x : 10 |+| 20; # x = 31
 ```
 
 -   **Symbol**: The key must be a valid operator symbol string.
+
 -   **Arity**: The function receives `left` and `right` arguments for infix operators. For prefix operators, `left` is typically `null` or `error`.
+
 -   **Precedence**: Custom operators currently default to a precedence level of **100**, placing them below standard arithmetic but above assignment.
 
 #### Execution Model
 When the runtime encounters an operator expression `A op B`:
+
 1.  **Resolution**: It looks up the operator string `op` in the current **Scope** (Table).
+
 2.  **Dispatch**:
     -   If a user-defined function is found, it is called with `A` and `B`.
     -   If not found, it falls back to the **Standard Library** implementation (e.g., primitive `+`).
+
 3.  **Binding**: This dynamic dispatch allows for powerful DSL creation and localized operator behavior.
 
 ### Module Definitions
@@ -1417,8 +1467,11 @@ lib : "path/to/lib.org" @ org;
 
 #### Execution Model
 When a module is imported:
+
 1.  **Scope**: It is executed in its own **local scope**, isolated from the importer.
+
 2.  **Structure**: The entire file represents a data structure (Table), where entries are defined using the `:` operator.
+
 3.  **Result**: The module returns this **Table**, allowing access to all defined symbolic names.
 
 **lib.org**:
@@ -1505,15 +1558,22 @@ PrefixOp    ::= IDENTIFIER | "-" | "!" | "~" | "@" | "++" | "--"
 The OrgLang compiler (`org`) operates on a single entrypoint file and resolves dependencies recursively.
 
 #### Entrypoint and Output
+
 -   **Executable**: The compiler always produces an executable binary by default. There is no distinction between "library" and "executable" projects at the build level.
+
 -   **Command**: `org build main.org` compiles `main.org` (and its dependencies) into an executable named `main`.
+
 -   **Output Name**: You can specify the output filename using the `-o` or `--output` flag: `org build main.org -o myapp`.
+
 -   **Execution**: The entrypoint file is executed from top to bottom. Modules imported by it are executed when the `path @ org` expression is encountered.
 
 #### Dependency Resolution
 When a module is imported via `"path" @ org`:
+
 1.  **Relative Path**: The compiler first attempts to resolve the path relative to the **source file** that contains the import statement.
+
 2.  **Fallback**: If not found, it attempts to resolve relative to the current working directory or absolute paths.
+
 3.  **Compilation**: All imported modules are compiled into the single output binary. Cycles are currently allowed but will result in infinite recursion at runtime if not handled carefully (though the import cache prevents re-execution of the top-level scope).
 
 ### Imports
@@ -1526,9 +1586,13 @@ lib : "path/to/lib.org" @ org;
 ```
 
 #### Execution Semantics
+
 -   **Dynamic Evaluation**: The import is an expression evaluated at runtime.
+
 -   **No Caching**: Each time the `@ org` expression is evaluated, the module's body is executed. There is no built-in singleton cache. If a module has side effects (e.g., printing to stdout), importing it multiple times will trigger those side effects each time.
+
 -   **Optimization**: The compiler includes the module's code only once in the final binary, but the *call* to that code happens on every import evaluation.
+
 -   **Best Practice**: Assign the result of an import to a variable (`lib`) and reuse that variable to avoid re-execution.
 
 #### Path Resolution
@@ -1553,19 +1617,29 @@ project/
 The following features are currently **not implemented** but are planned for future versions:
 
 #### 1. Language Features
+
 -   **Static Analysis**: A pass to detect undefined variables and type mismatches before compilation.
+
 -   **Pattern Matching**: Enhanced syntax for destructuring Tables in function arguments.
+
 -   **Coroutines**: First-class support for suspending and resuming execution contexts.
 
 #### 2. Tooling
+
 -   **REPL**: An interactive Read-Eval-Print Loop for quick experimentation.
+
 -   **LSP**: A Language Server Protocol implementation for IDE support.
+
 -   **Package Manager**: A tool (`org get`) to manage external dependencies.
 
 #### 3. Optimizations
+
 -   **Bytecode Interpreter**: Alternatively to C transpilation, a direct bytecode interpreter for faster development cycles.
+
 -   **Tail Call Optimization**: To support deeper recursion safely.
 
 ### Non-Goals (v1)
+
 -   **Strict Static Typing**: OrgLang v1 is dynamically typed. Optional type hints may be added later, but strict enforcement is not a priority.
+
 -   **Object-Oriented Classes**: The Table-based prototype system is the primary abstraction mechanism.
