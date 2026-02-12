@@ -394,6 +394,30 @@ The binary `->` operator drives data from a source (left operand) to a sink (rig
 @stdin -> { args * 2 } -> @stdout;
 ```
 
+##### Balanced Data Flow (`-<`)
+
+The binary `-<` operator performs a balanced dispatch of data. It sends each element from the left source to exactly **one** of the available sinks in the Table on the right side, typically using a round-robin or load-balancing strategy.
+
+- **Load Balancing**: If the right operand is a Table of sinks, elements are distributed among them.
+- **Degeneration to `->`**: If the right operand contains only one sink, it behaves identically to the basic data flow operator (`->`).
+
+```rust
+# Distribute tasks between two workers
+@tasks -< [worker1 worker2];
+```
+
+##### Join Data Flow (`-<>`)
+
+The binary `-<>` operator acts as a synchronizing barrier. It is used to merge multiple data streams into a single flow of coordinated packets.
+
+- **Synchronization**: It waits for **every source** in the left Table to produce at least one element.
+- **Aggregation**: Once one element is received from each source, it combines them into a single Table and sends that Table as a single "pulse" to the right operand.
+
+```rust
+# Synchronize data from two sensors before processing
+[sensor1 sensor2] -<> processor;
+```
+
 #### Assignment operators
 
 In OrgLang, assignment is strictly an operation that binds a value to a name within a [Table](#tables-as-blocks).
@@ -443,6 +467,49 @@ When an operator is called, the expression within the braces is evaluated. The o
 > - **Correct**: `op : 50{ ... }60;`
 > - **Incorrect**: `op : 50 { ... } 60;`
 
+#### Operators on operators
+
+OrgLang provides higher-order operators that allow for the functional construction of logic by combining or specializing existing operators.
+
+##### The `o` (compose) operator
+
+The binary `o` operator performs **Functional Composition**. it merges two operators into a single, unified transformation.
+
+- **Sequence**: In the expression `h : g o f`, the output of the right operator (`f`) becomes the input of the left operator (`g`).
+- **Optimization**: The runtime attempts to fuse these operations into a single execution step to minimize intermediate overhead.
+
+**Arity-based Composition Rules (`h : g o f`):**
+
+The behavior of the composed operator `h` depends on the arity of `g` and `f`. The general rule is that the result of `f` always populates the `right` slot of `g`, and if `g` is binary, it retains the original `left` operand.
+
+- **Unary `g` o Binary `f`**: `h` is a binary operator. `h(left, right)` evaluates as `g(f(left, right))`.
+- **Binary `g` o Unary `f`**: `h` is a binary operator. `h(left, right)` evaluates as `g(left, f(right))`. This effectively uses `f` to pre-process the "main" argument while preserving the context in `left`.
+- **Binary `g` o Binary `f`**: `h` is a binary operator. `h(left, right)` evaluates as `g(left, f(left, right))`.
+- **Unary `g` o Unary `f`**: `h` is a unary operator. `h(right)` evaluates as `g(f(right))`.
+
+```rust
+# Compose increment and double
+inc : { right + 1 };
+double : { right * 2 };
+inc_and_double : double o inc;
+
+result : inc_and_double 5; # 12
+```
+
+##### The `|>` (partial application) operator
+
+The binary `|>` operator, also known as the **Left Injector**, performs **Partial Application**. It "anchors" a value into the `left` slot of an operator, returning a new unary operator.
+
+- **Specialization**: It allows you to create specialized versions of binary operators by fixing one of the operands.
+- **Left Binding**: The value on the left of `|>` is bound to the `left` parameter of the operator on the right.
+
+```rust
+# Create a specialized 'add 10' function
+add_ten : 10 |> +;
+
+result : add_ten 5; # 15
+```
+
 ### Delimiters
 
 Delimiters are structural symbols used for grouping expressions, constructing data structures, and defining blocks of code.
@@ -480,45 +547,148 @@ thunk : { 1 + 1 };
 
 ## Data model
 
-### Objects, values and types
+The Data Model defines the fundamental entities and their relationships within OrgLang. It describes how information is represented, organized, and manipulated by the runtime. OrgLang is built on a foundation of extreme orthogonality and high-level abstractions, where complex behaviors emerge from the interaction of a small set of primitive types and universal operators.
+
+### Values and types
+
+In OrgLang, information is represented as **Values**. A Value is a piece of data that can be bound to a name, passed as an argument to an operator, or returned as the result of an expression.
+
+The language uses a **Dynamic Typing** model. This means that variables (bindings) do not have types; only the Values themselves carry type information. A variable can hold a Number at one point and a Table later in the execution.
+
+#### Values vs. Objects
+Unlike many object-oriented languages, OrgLang does not strictly distinguish between "primitive values" and "objects." Every entity, from a simple Integer to a complex Resource Instance, is a first-class Value. Even Errors and Operators are treated as Values that can be manipulated and stored.
+
+#### First-Class Expressions
+Because OrgLang is built on a late-binding, lazy evaluation model, any piece of code enclosed in braces `{}` is itself a Value—an **Operator**. This allows logic to be passed around as data, forming the basis for the language's "Compositional" nature.
+
+#### Extreme Orthogonality
+A hallmark of OrgLang values is their predictable behavior across different operators. For instance, the addition operator `+` is defined for all types:
+- Adding two Numbers produces their sum.
+- Adding a Table to a Number uses the Table's size.
+- Adding two Tables returns the sum of their sizes.
+This consistency reduces the need for "special cases" and allows for highly generic code.
 
 ### The standard type hierarchy
 
-- Error
-  - Expression
-    - Name
-    - Table
-      - String
-    - Number
-      - Integer
-      - Rational
-      - Decimal
-    - Boolean
-    - Operator
+OrgLang organizes its types into a logical hierarchy. While the runtime may implement these as a flat set of structures for performance, semantically they follow this inheritance pattern:
 
-### Special method names
+- Expression
+  - Error
+  - Name
+  - Table
+    - String
+  - Number
+    - Integer
+    - Rational
+    - Decimal
+  - Boolean
+  - Operator
+    - Unary
+    - Binary
+    - Nullary
+
+### Special names
+
+#### main
+
+One of the special names is `main`. It is a special name because it is the entry point of the program. An org executable will look for a global name `main` and execute it. If `main` is not found, the program will exit with an error.
 
 ## Execution model
 
+The Execution Model describes how OrgLang programs are evaluated, how names are resolved, and how state is managed over time. The model is centered around the concept of **Persistent Tables** and **Lazy Evaluation**.
+
 ### Naming and binding
+
+In OrgLang, naming is not a separate storage mechanism but a structural property of [Tables](#table-literals).
+
+#### Everything is a Table
+Every scope in OrgLang—whether it's the global file scope, a code block `{ }`, or a module loaded from another file—is semantically a Table. When you perform an assignment using the binding operator `:`, you are performing a key-value insertion into the **Current Table**.
+
+#### Dynamic Binding and Shadowing
+Bindings are resolved dynamically based on lexical scope. When an identifier is evaluated, the runtime looks it up in the current table. If not found, it traverses upward through parent tables (e.g., from an operator's internal scope to the file's global scope). If you assign to a name that already exists in the current scope, the new value shadows (updates) the previous binding.
+
+#### Evaluation of Bindings (Laziness)
+A core feature of OrgLang is that table entries are **Lazy** by default. When you bind an expression to a name, the expression is wrapped in a "thunk" and stored. Evaluation only occurs when the name is explicitly accessed via the [Dot Access](#dot-access-.) or [Selection Access](#selection-access-?) operators.
+
+```rust
+x : 1 + 2; # 'x' stores the expression { 1 + 2 }
+y : x;     # 'y' now also stores the same thunk
+result : x; # Accessing 'x' triggers evaluation, result becomes 3
+```
 
 ### Errors
 
-## Expressions
+Errors in OrgLang are not "exceptions" that interrupt the flow of control; they are **First-Class Values** that participate in the data flow.
+
+#### Error Propagation
+Most operators in OrgLang are "Error-Aware." If any operand of a binary or unary operation is an Error value, the operator does not perform its standard calculation. Instead, it immediately returns the Error value. This allows errors to propagate naturally through complex expressions until they reach a handler or the program's output.
+
+#### Error Generation
+Crucially, **`Error` is not a literal** in OrgLang. You cannot write `x : Error` or `Error + 1` in your source code, as the word `Error` is a type name, not a value constructor. To force the generation of an Error value, you must perform an operation that is mathematically or logically invalid.
+
+```rust
+# Forcing an error through division by zero
+val : 1 / 0; # 'val' now holds an Error value
+```
+
+#### Error Handling
+Specifically designed operators like `??` (Error Check) and `?:` (Elvis) allow the programmer to detect and recover from Error values. These are the only operators that do not automatically propagate errors from their left operand.
+
+```rust
+# Propagating an error generated from invalid math
+( (1/0) + 1 ) * 2; # Returns Error
+
+# Handling an error
+val : (1/0) ?? 0; # Returns 0
+```
+
+#### Terminal Signaling
+If an Error value is returned by the `main` entry point or remains as the result of a top-level expression, the runtime typically signals this to the user via the system's standard error stream (stderr).
 
 ### Arithmetic conversions
 
+Arithmetic expressions in OrgLang are designed to be highly predictable and permissive, adhering to the principle of **extreme orthogonality**. Arithmetic operators (`+`, `-`, `*`, `/`, `%`) always aim to return a numeric value (Integer, Rational, or Decimal) by coercing their operands if necessary.
+
+#### Coercion of Non-Numeric Types
+When an arithmetic operator is applied to a non-numeric type, it is automatically coerced into a Number before the operation is performed:
+
+- **Tables and Strings**: Coerced to their **size** (the number of elements or characters).
+- **Booleans**: Coerced to `1` for `true` and `0` for `false`.
+
+```rust
+# Extreme orthogonality examples
+"Hello" + 1;      # 5 + 1 = 6
+[10 20 30] * 2;   # 3 * 2 = 6
+true + true;      # 1 + 1 = 2
+```
+
+#### Division Rules
+OrgLang handles division between Integers with special care to maintain precision without prematurely forcing floating-point representation.
+
+- **Exact Division**: If one Integer divides another perfectly with no remainder, the result is an **Integer**.
+- **Inexact Division**: If there is a remainder, the result is a **Rational**.
+
+```rust
+result1 : 4 / 2; # result1 is Integer 2
+result2 : 3 / 2; # result2 is Rational 3/2
+```
+
+#### Numeric Promotion
+When operations involve different numeric subtypes, the result is promoted to the most general type:
+- Operations involving a **Decimal** typically produce a **Decimal**.
+- Operations involving a **Rational** and an **Integer** typically produce a **Rational**.
+
 ### Atoms
 
-#### Identifiers (Names)
+#### Names
 
 #### Literals
 
 #### Parenthesized forms
 
-#### Displays for Tables, Lists, Sets and Dictionaries
+#### Tables
 
-#### Table displays
+#### Operators
 
 ### Unary arithmetic and bitwise operations
 
@@ -544,9 +714,7 @@ thunk : { 1 + 1 };
 
 ### Assignment 
 
-### The resources
-
-### The ? operator
+### Resources
 
 ### Operator definitions
 
