@@ -265,6 +265,25 @@ result : computation.0;       # 2 (evaluation happens here)
 
 ### Operators
 
+In OrgLang, almost every operation and structural construct is modeled as an **operator**. The language is designed to be highly orthogonal, with a minimal set of core rules that govern how these operators interact within expressions. Unlike many traditional languages that distinguish between operators, functions, and control structures, OrgLang treats nearly everything—from arithmetic to resource management and conditional evaluation—as an expression driven by operators.
+
+#### Philosophy and Mechanics
+
+OrgLang operators are strictly **unary** (prefix) or **binary** (infix). This strictness simplifies the language's grammar and execution model but introduces a different way of thinking about computation:
+
+- **Binding Power**: The behavior of an expression is determined by the binding power (precedence) of its operators. Operators with higher binding power "pull" operands closer than those with lower power.
+- **Everything is an Expression**: Operators don't just "perform actions"; they transform values and return new ones. This allows for deeply nested and highly expressive chains of computation.
+
+#### Limitations and Patterns
+
+The limitation to unary and binary forms (maximum of two operands) may seem restrictive compared to the variety of arities found in other languages. However, OrgLang overcomes this through several powerful patterns:
+
+- **Tables as Parameters**: To pass multiple values to an operation that only accepts one operand (like a unary function call), those values are grouped into a [Table literal](#table-literals). The operation then extracts exactly what it needs from the table.
+- **Currying**: Binary operators can be used to "partially apply" data. An expression like `a op b` can return a new thunk or function that is "ready" to take more data later.
+- **Abstractions**: Simple operators can be composed and bound to names, creating high-level abstractions that behave like complex built-in features in other languages.
+
+By embracing these patterns, OrgLang achieves a high degree of expressiveness while maintaining a structurally simple core.
+
 #### Arithmetic operators
 
 #### Bitwise operators
@@ -294,6 +313,18 @@ result : computation.0;       # 2 (evaluation happens here)
 ### Objects, values and types
 
 ### The standard type hierarchy
+
+- Error
+  - Expression
+    - Name
+    - Table
+      - String
+    - Number
+      - Integer
+      - Rational
+      - Decimal
+    - Boolean
+    - Operator
 
 ### Special method names
 
