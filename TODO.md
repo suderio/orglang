@@ -29,6 +29,7 @@ Summary of pending issues and feature enhancements discovered during sanity test
     - [ ] Implement proper `main` entry point lookup and execution.
     - [ ] Support implicit table creation for the entire source file.
 - [ ] **Resource Lifecycle**: Ensure full `setup`, `step`, and `teardown` coordination in the C runtime for all resource interactions.
+- [ ] **Atoms in Tables Tests**: Add test cases to verify greedy binding and space-separation logic in table literals (e.g., `[a: 1 + 1]` vs `[a: (1 + 1)]`).
 
 ## Technical Debt
 - [ ] Refactor `sanity_test.go` to handle large outputs more gracefully and avoid potential deadlocks in its own pipe-to-stdout logic.
