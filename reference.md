@@ -286,23 +286,85 @@ By embracing these patterns, OrgLang achieves a high degree of expressiveness wh
 
 #### Arithmetic operators
 
+Arithmetic operators perform standard mathematical calculations. In OrgLang, these operators are designed to work with arbitrary-precision [Numeric literals](#numeric-literals).
+
+| Operator | Name | Arity | Description |
+| :--- | :--- | :--- | :--- |
+| `+` | Addition | Binary | Returns the sum of two numbers. |
+| `-` | Subtraction | Binary | Returns the difference between two numbers. |
+| `-` | Negation | Unary | Returns the additive inverse of a number. |
+| `*` | Multiplication | Binary | Returns the product of two numbers. |
+| `/` | Division | Binary | Returns the quotient of two numbers. |
+| `^` | Power | Binary | Returns the left operand raised to the power of the right operand (Right-associative). |
+
+> [!NOTE]
+> **Table Semantic**: When applied to [Table literals](#table-literals) or [Strings](#string-literals), the `+` operator returns the **sum of their lengths**, rather than performing concatenation.
+
 #### Bitwise operators
+
+> [!NOTE]
+> **TBD**: Bitwise operators (e.g., `&`, `\|`, `^`, `<<`, `>>`) are not yet implemented in the current runtime version.
 
 #### Comparison operators
 
+Comparison operators compare two values and always return a [Boolean literal](#boolean-literals) (`true` or `false`). OrgLang supports standard comparison operations, as well as automatic [type coercion](#arithmetic-conversions) (e.g., comparing a string length to an integer).
+
+| Operator | Description | Example |
+| :--- | :--- | :--- |
+| `=` | Equal to | `x = y` |
+| `<>`, `~=` | Not equal to | `x <> y` |
+| `<` | Less than | `x < y` |
+| `<=` | Less than or equal to | `x <= y` |
+| `>` | Greater than | `x > y` |
+| `>=` | Greater than or equal to | `x >= y` |
+
+> [!IMPORTANT]
+> **Comparison Chaining**: Since every comparison returns a Boolean, the result of a chain (e.g., `x < y < z`) is the result of the **last comparison** in the chain. This differs from languages where such a chain might be shorthand for `(x < y) && (y < z)`.
+
 #### Boolean operators
+
+Boolean operators are used to perform logical calculations.
+
+| Operator | Name | Arity | Description |
+| :--- | :--- | :--- | :--- |
+| `~` | NOT | Unary | Returns the logical negation of a boolean value. |
+| `&&` | AND | Binary | Short-circuit logical AND (returns `true` only if both are `true`). |
+| `\|\|` | OR | Binary | Short-circuit logical OR (returns `true` if at least one is `true`). |
 
 #### Conditional operators
 
-#### Lambda operators
+Conditional operators allow for selection and branching within expressions without traditional `if/else` statements.
 
-#### Assignment operators
+| Operator | Name | Arity | Description |
+| :--- | :--- | :--- | :--- |
+| `.` | Dot Access | Binary | Static/Positional access to a Table's elements or keys. |
+| `?` | Selection Access | Binary | Conditional or dynamic selection from a Table. Evaluation-driven. |
 
 #### Resource operators
 
-##### The org resource operator
+Resource operators manage the lifecycle and data flow of [Resources](#the-resources).
 
-#### The ? operator
+##### Resource Instantiation (`@`)
+The prefix `@` operator is used to instantiate a resource. When applied to a resource name or literal, it executes the resource's `setup` block and returns a **Resource Instance**.
+
+```orglang
+# Instantiate stdout
+@stdout
+```
+
+##### Data Flow (`->`)
+The binary `->` operator drives data from a source (left operand) to a sink (right operand).
+
+- **Source -> Sink**: Drives all data from the source into the sink until completion.
+- **Iterator -> Function**: Creates a new projection (map) that will process elements lazily.
+
+```orglang
+# Send a string to stdout
+"Hello" -> @stdout;
+
+# Send input through a transform to output
+@stdin -> { args * 2 } -> @stdout;
+```
 
 #### Operator definitions
 
