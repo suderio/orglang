@@ -385,6 +385,25 @@ In OrgLang, assignment is strictly an operation that binds a value to a name wit
 | :--- | :--- | :--- |
 | `:` | Binding | Binds the result of the right expression to the name specified on the left. |
 
+> [!NOTE]
+> **Extended Assignment**: OrgLang reserves the following operators for extended assignment (modification of existing bindings). These are **not yet implemented** in the current runtime.
+
+| Operator | Description | Example |
+| :--- | :--- | :--- |
+| `:+` | Addition and Assignment | `x :+ 2` |
+| `:-` | Subtraction and Assignment | `x :- 1` |
+| `:*` | Multiplication and Assignment | `x :* 3` |
+| `:/` | Division and Assignment | `x :/ 4` |
+| `:%` | Modulo and Assignment | `x :% 5` |
+| `++` | Increment and Assignment | `++ x` |
+| `--` | Decrement and Assignment | `-- x` |
+| `:>>` | Right Shift and Assignment | `x :>> 5` |
+| `:<<` | Left Shift and Assignment | `x :<< 5` |
+| `:&` | AND and Assignment | `x :& y` |
+| `:^` | XOR and Assignment | `x :^ y` |
+| `:\|` | OR and Assignment | `x :\| y` |
+| `:~` | Bitwise NOT and Assignment | `x :~ 1` |
+
 #### Operator definitions
 
 OrgLang allows for the definition of custom operators and the refinement of existing ones using the **Binding Power** syntax. This syntax defines the left and right binding powers, determining the operator's precedence and associativity.
