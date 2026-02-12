@@ -1358,19 +1358,132 @@ Scoped resources are a special pattern where a resource manages a memory arena f
 
 In this example, `@file_reader` allocates its buffer within `@arena`. when the flow completes, `@arena` is freed, automatically closing the file and reclaiming memory.
 
-### Operator definitions
+### Operator Definitions
 
-### Module definitions
+In OrgLang, operators are fundamentally **functions bound to symbolic names** within the current scope. This aligns with the language's philosophy that "Scope is a Table".
 
-### File input
+#### Defining Custom Operators
+To define a new operator (or override an existing one), you assign a **Function** to a string key corresponding to the operator symbol.
 
-### Interactive input
+```rust
+# Define a custom operator |+|
+"|+|" : { 
+    left + right + 1 
+};
 
-### Expression input
+# Usage
+x : 10 |+| 20; # x = 31
+```
 
-### Full Grammar specification
+-   **Symbol**: The key must be a valid operator symbol string.
+-   **Arity**: The function receives `left` and `right` arguments for infix operators. For prefix operators, `left` is typically `null` or `error`.
+-   **Precedence**: Custom operators currently default to a precedence level of **100**, placing them below standard arithmetic but above assignment.
 
-## Build model
+#### Execution Model
+When the runtime encounters an operator expression `A op B`:
+1.  **Resolution**: It looks up the operator string `op` in the current **Scope** (Table).
+2.  **Dispatch**:
+    -   If a user-defined function is found, it is called with `A` and `B`.
+    -   If not found, it falls back to the **Standard Library** implementation (e.g., primitive `+`).
+3.  **Binding**: This dynamic dispatch allows for powerful DSL creation and localized operator behavior.
+
+### Module Definitions
+
+Modules in OrgLang are simply source files `.org` that are evaluated as **Tables**.
+
+#### Importing a Module
+To load a module, you use the `@` operator with the `org` resource.
+
+```rust
+lib : "path/to/lib.org" @ org;
+```
+
+#### Execution Model
+When a module is imported:
+1.  **Scope**: It is executed in its own **local scope**, isolated from the importer.
+2.  **Structure**: The entire file represents a data structure (Table), where entries are defined using the `:` operator.
+3.  **Result**: The module returns this **Table**, allowing access to all defined symbolic names.
+
+**lib.org**:
+```rust
+helper : { left + 1 };
+add_one : helper;
+constant : 42;
+```
+
+**main.org**:
+```rust
+lib : "lib.org" @ org;
+x : 10 -> lib.add_one; # x = 11
+y : lib.constant; # y = 42
+```
+
+### Full Grammar Specification
+
+The following EBNF describes the valid sequences of tokens in OrgLang. This grammar does not capture operator precedence, which is handled dynamically by the runtime (Pratt Parser). It also does not enforce the "no space" rule for Binding Powers, which must be handled by the lexer/parser.
+
+```ebnf
+/* Lexical Tokens & Literals */
+/* Note: Signed numbers must not have a space between the sign and the number */
+INTEGER     ::= ("-")? [0-9]+
+DECIMAL     ::= ("-")? [0-9]+ "." [0-9]+
+RATIONAL    ::= INTEGER "/" INTEGER  /* Syntactic sugar for division expression */
+STRING      ::= '"' [^"]* '"'
+              | '"""' .*? '"""'
+BOOLEAN     ::= "true" | "false"
+
+IDENTIFIER  ::= [a-zA-Z_!$%&*+\-=\^~?/<|>][a-zA-Z0-9_!$%&*+\-=\^~?/<|>\.]*
+
+/* Program Structure */
+Program     ::= Statement*
+Statement   ::= Expression (";")?
+
+/* Expressions (Flat Structure) */
+/* An expression is a sequence of operands and operators. Precedence is dynamic. */
+Expression  ::= Operand (Operator Operand)*
+
+/* Operands */
+Operand     ::= Literal
+              | Identifier
+              | Keyword
+              | Group
+              | Table
+              | Function
+              | Resource
+              | PrefixOp Operand
+
+/* Keywords and Special Identifiers */
+Keyword     ::= "this" | "left" | "right"
+
+/* Complex Structures */
+Group       ::= "(" Expression ")"
+
+/* Tables */
+/* Tables are constructed using [ ] or by using the comma operator in a Group */
+Table       ::= "[" Expression* "]"
+
+/* Functions (Lambdas / Blocks) */
+/* Note: LBP/RBP Integers must be immediately adjacent to braces (no spaces) */
+Function    ::= (INTEGER)? "{" Expression "}" (INTEGER)?
+
+/* Resources */
+Resource    ::= "resource" Table
+
+/* Operators */
+Operator    ::= IDENTIFIER
+              | "+" | "-" | "*" | "/" | "%" | "**"
+              | "=" | "<>" | "<" | ">" | "<=" | ">="
+              | "&&" | "||" | "!" | "~"
+              | "&" | "|" | "^" | "<<" | ">>"
+              | "->" | "-<" | "-<>"
+              | "." | "?" | "?:" | "??"
+              | ":" | "," | "o"
+              | "++" | "--" | "@"
+
+PrefixOp    ::= IDENTIFIER | "-" | "!" | "~" | "@" | "++" | "--"
+```
+
+### Build model
 
 ### Project structure
 
