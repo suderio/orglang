@@ -34,12 +34,30 @@ func main() {
 		Long:  `OrgLang is a new programming language focused on orthogonality and aesthetics.`,
 	}
 
+	var outputFlag string
+
 	var buildCmd = &cobra.Command{
 		Use:   "build [file]",
 		Short: "Compile an OrgLang source file to an executable",
 		Args:  cobra.ExactArgs(1),
-		Run:   runBuild,
+		Run: func(cmd *cobra.Command, args []string) {
+			sourceFile := args[0]
+			outputFile := outputFlag
+			if outputFile == "" {
+				outputFile = strings.TrimSuffix(sourceFile, filepath.Ext(sourceFile))
+			}
+
+			if err := compile(sourceFile, outputFile); err != nil {
+				fmt.Println(errorStyle.Render("Build Failed:"))
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			fmt.Println(successStyle.Render("Build Successful: " + outputFile))
+		},
 	}
+
+	buildCmd.Flags().StringVarP(&outputFlag, "output", "o", "", "Output binary name")
 
 	var runCmd = &cobra.Command{
 		Use:   "run [file]",
@@ -54,19 +72,6 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-}
-
-func runBuild(cmd *cobra.Command, args []string) {
-	sourceFile := args[0]
-	outputFile := strings.TrimSuffix(sourceFile, filepath.Ext(sourceFile))
-
-	if err := compile(sourceFile, outputFile); err != nil {
-		fmt.Println(errorStyle.Render("Build Failed:"))
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	fmt.Println(successStyle.Render("Build Successful: " + outputFile))
 }
 
 func runRun(cmd *cobra.Command, args []string) {

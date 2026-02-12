@@ -2,7 +2,24 @@
 
 ## Introduction
 
+OrgLang is a programming language designed with a focus on **orthogonality**, **aesthetics**, and **minimalism**. It is built on a few deeply integrated concepts:
+
+1.  **Uniformity**: Everything in OrgLang is data. The fundamental data structure is the **Table**—a collection of pairs that represents scopes, modules, and objects.
+2.  **Flux**: Execution is modeled as a flow of data through transformations. The `->` operator (Push) is as central as variable assignment.
+3.  **Reification**: Side effects and external resources (Files, Networks, System calls) are reified as **Resources**, allowing for deterministic and scoped management of effects.
+
+OrgLang aims to provide a premium development experience where the code is as beautiful as the systems it builds.
+
 ## Notation
+
+This manual uses the following conventions:
+
+-   **Bold text** highlights key concepts and terms defined for the first time.
+-   `Monospace text` denotes identifiers, keywords, operator symbols, and literal values.
+-   Code examples are provided in blocks with syntax highlighting.
+-   Grammar specifications are written in **EBNF** (Extended Backus-Naur Form).
+-   > [!NOTE]
+    > Alerts like this provide additional context, implementation details, or helpful tips.
 
 ## Lexical analysis
 
@@ -1483,14 +1500,72 @@ Operator    ::= IDENTIFIER
 PrefixOp    ::= IDENTIFIER | "-" | "!" | "~" | "@" | "++" | "--"
 ```
 
-### Build model
+### Build Model
 
-### Project structure
+The OrgLang compiler (`org`) operates on a single entrypoint file and resolves dependencies recursively.
+
+#### Entrypoint and Output
+-   **Executable**: The compiler always produces an executable binary by default. There is no distinction between "library" and "executable" projects at the build level.
+-   **Command**: `org build main.org` compiles `main.org` (and its dependencies) into an executable named `main`.
+-   **Output Name**: You can specify the output filename using the `-o` or `--output` flag: `org build main.org -o myapp`.
+-   **Execution**: The entrypoint file is executed from top to bottom. Modules imported by it are executed when the `path @ org` expression is encountered.
+
+#### Dependency Resolution
+When a module is imported via `"path" @ org`:
+1.  **Relative Path**: The compiler first attempts to resolve the path relative to the **source file** that contains the import statement.
+2.  **Fallback**: If not found, it attempts to resolve relative to the current working directory or absolute paths.
+3.  **Compilation**: All imported modules are compiled into the single output binary. Cycles are currently allowed but will result in infinite recursion at runtime if not handled carefully (though the import cache prevents re-execution of the top-level scope).
 
 ### Imports
 
-### Executables
+Imports in OrgLang are expressions that evaluate to a **Table** containing the definitions from the imported file.
 
-### Libraries
+#### Syntax
+```rust
+lib : "path/to/lib.org" @ org;
+```
 
-### Dependencies
+#### Execution Semantics
+-   **Dynamic Evaluation**: The import is an expression evaluated at runtime.
+-   **No Caching**: Each time the `@ org` expression is evaluated, the module's body is executed. There is no built-in singleton cache. If a module has side effects (e.g., printing to stdout), importing it multiple times will trigger those side effects each time.
+-   **Optimization**: The compiler includes the module's code only once in the final binary, but the *call* to that code happens on every import evaluation.
+-   **Best Practice**: Assign the result of an import to a variable (`lib`) and reuse that variable to avoid re-execution.
+
+#### Path Resolution
+As described in the Build Model, paths are resolved relative to the source file.
+
+### Project Structure
+There is no mandated project structure, but the following convention is recommended:
+
+```text
+project/
+├── main.org          # Entrypoint
+├── lib/              # Library modules
+│   ├── math.org
+│   └── utils.org
+├── test/             # Tests
+│   └── main_test.org
+└── build/            # Output directory (optional)
+```
+
+### Future Goals (Wishlist)
+
+The following features are currently **not implemented** but are planned for future versions:
+
+#### 1. Language Features
+-   **Static Analysis**: A pass to detect undefined variables and type mismatches before compilation.
+-   **Pattern Matching**: Enhanced syntax for destructuring Tables in function arguments.
+-   **Coroutines**: First-class support for suspending and resuming execution contexts.
+
+#### 2. Tooling
+-   **REPL**: An interactive Read-Eval-Print Loop for quick experimentation.
+-   **LSP**: A Language Server Protocol implementation for IDE support.
+-   **Package Manager**: A tool (`org get`) to manage external dependencies.
+
+#### 3. Optimizations
+-   **Bytecode Interpreter**: Alternatively to C transpilation, a direct bytecode interpreter for faster development cycles.
+-   **Tail Call Optimization**: To support deeper recursion safely.
+
+### Non-Goals (v1)
+-   **Strict Static Typing**: OrgLang v1 is dynamically typed. Optional type hints may be added later, but strict enforcement is not a priority.
+-   **Object-Oriented Classes**: The Table-based prototype system is the primary abstraction mechanism.
