@@ -13,6 +13,24 @@ Summary of pending issues and feature enhancements discovered during sanity test
 - [ ] **Extended Assignment Operators**: Implement `:+`, `:-`, `:*`, `:/` etc., in the parser and runtime.
 - [ ] **Standard Library Expansion**: Add more built-in resources for file I/O, networking, and string manipulation.
 
+## Implementation Gaps (Specification Sync)
+
+- [ ] **Higher-Order Operators**: Implement `o` (Compose) and `|>` (Partial Application) in parser, codegen, and runtime.
+- [ ] **Short-Circuiting**: Logical `&&` and `||` must not evaluate the right operand if the result is determined by the left.
+- [ ] **Advanced Flow**: Implement `-<` (Balanced Dispatch) and `-<>` (Barrier Join) in the runtime.
+- [ ] **Table Thunks and Eval**:
+    - [ ] Implement actual lazy thunks for table elements.
+    - [ ] Differentiate `.` (Table Access - returns thunk) from `?` (Selection/Eval - evaluates).
+- [ ] **Comparison Chaining**: Refactor to support `x < y < z` returning the last comparison result as per spec.
+- [ ] **String Enhancements**:
+    - [ ] Implement `$N` (positional) and `$var` (variable) interpolation.
+    - [ ] Ensure strings are semantically Tables indexed by integers.
+- [ ] **Execution Model**:
+    - [ ] Implement proper `main` entry point lookup and execution.
+    - [ ] Support implicit table creation for the entire source file.
+- [ ] **Resource Lifecycle**: Ensure full `setup`, `step`, and `teardown` coordination in the C runtime for all resource interactions.
+
 ## Technical Debt
 - [ ] Refactor `sanity_test.go` to handle large outputs more gracefully and avoid potential deadlocks in its own pipe-to-stdout logic.
 - [ ] Improved error reporting in the C runtime (more descriptive signals than just "FAIL").
+- [ ] Review mutated state in `,` operator (Persistence vs Mutation).
