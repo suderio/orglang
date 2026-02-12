@@ -2,28 +2,28 @@
 #include <stdio.h>
 
 // Globals
+static OrgValue *org_var_Error = NULL;
+static OrgValue *org_var_stdout = NULL;
 static OrgValue *org_var_print = NULL;
 static OrgValue *org_var_buf = NULL;
 static OrgValue *org_var_n = NULL;
 static OrgValue *org_var_stdin = NULL;
-static OrgValue *org_var_Error = NULL;
-static OrgValue *org_var_stdout = NULL;
 
 
 // Auxiliary Functions
-static OrgValue *org_fn_0(Arena *arena, OrgValue *this_val, OrgValue *args) {
-return org_syscall(arena, org_list_make(arena, 4, org_string_from_c(arena, "write"), org_int_from_str(arena, "1"), args, org_int_from_str(arena, "-1")));
+static OrgValue *org_fn_0(Arena *arena, OrgValue *func, OrgValue *left, OrgValue *right) {
+return org_syscall(arena, org_list_make(arena, 4, org_string_from_c(arena, "write"), org_int_from_str(arena, "1"), right, org_int_from_str(arena, "-1")));
 }
 
-static OrgValue *org_fn_1(Arena *arena, OrgValue *this_val, OrgValue *args) {
-return org_op_infix(arena, "->", args, org_op_prefix(arena, "@", org_var_stdout));
+static OrgValue *org_fn_1(Arena *arena, OrgValue *func, OrgValue *left, OrgValue *right) {
+return org_op_infix(arena, "->", right, org_op_prefix(arena, "@", org_var_stdout));
 }
 
-static OrgValue *org_fn_2(Arena *arena, OrgValue *this_val, OrgValue *args) {
+static OrgValue *org_fn_2(Arena *arena, OrgValue *func, OrgValue *left, OrgValue *right) {
 return NULL;
 }
 
-static OrgValue *org_fn_3(Arena *arena, OrgValue *this_val, OrgValue *args) {
+static OrgValue *org_fn_3(Arena *arena, OrgValue *func, OrgValue *left, OrgValue *right) {
 (org_var_buf = org_malloc(arena, org_value_to_long(org_int_from_str(arena, "64"))), org_pair_make(arena, org_string_from_c(arena, "buf"), org_var_buf));
 (org_var_n = org_syscall(arena, org_list_make(arena, 4, org_string_from_c(arena, "read"), org_int_from_str(arena, "0"), org_var_buf, org_int_from_str(arena, "64"))), org_pair_make(arena, org_string_from_c(arena, "n"), org_var_n));
 return org_value_evaluate(arena, org_table_get(arena, org_list_make(arena, 2, org_pair_make(arena, org_string_from_c(arena, "true"), org_var_buf), org_pair_make(arena, org_string_from_c(arena, "false"), org_var_Error)), org_op_infix(arena, ">", org_var_n, org_int_from_str(arena, "0"))));

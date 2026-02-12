@@ -49,6 +49,11 @@ func OperatorBindingPowers() map[token.TokenType]OperatorPower {
 		Infix:  bp(CALL, CALL), // args @ sys
 	}
 	ops[token.COLON] = OperatorPower{Infix: bp(BINDING+1, BINDING)} // Right-associative (81, 80)
+	ops[token.AND] = OperatorPower{Infix: bp(LOGICAL_AND, LOGICAL_AND)}
+	ops[token.OR] = OperatorPower{Infix: bp(LOGICAL_OR, LOGICAL_OR)}
+	ops[token.BIT_AND] = OperatorPower{Infix: bp(PRODUCT, PRODUCT)}
+	ops[token.BIT_OR] = OperatorPower{Infix: bp(SUM, SUM)}
+	ops[token.BIT_XOR] = OperatorPower{Infix: bp(SUM, SUM)}
 
 	// Prefix Only
 	ops[token.NOT] = OperatorPower{Prefix: bp(0, PREFIX_LVL)}

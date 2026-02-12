@@ -242,8 +242,9 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 			// If left is Identifier, it's a binding.
 			if ident, ok := e.Left.(*ast.Identifier); ok {
 				c.bindings[ident.Value] = true
+				mangled := mangleIdentifier(ident.Value)
 				return fmt.Sprintf("(org_var_%s = %s, org_pair_make(arena, org_string_from_c(arena, \"%s\"), org_var_%s))",
-					ident.Value, right, ident.Value, ident.Value), nil
+					mangled, right, ident.Value, mangled), nil
 			}
 			return fmt.Sprintf("org_pair_make(arena, %s, %s)", left, right), nil
 		}
@@ -281,7 +282,7 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 		}
 
 		// 3. Emit Call
-		return fmt.Sprintf("org_call(arena, %s, %s)", fnCode, argCode), nil
+		return fmt.Sprintf("org_call(arena, %s, NULL, %s)", fnCode, argCode), nil
 
 	case *ast.BlockLiteral:
 		return c.emitBlockLiteral(e)
@@ -307,16 +308,19 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 		return c.emitExpression(e.Expression)
 
 	case *ast.Identifier:
-		if e.Value == "args" {
-			return "args", nil
+		if e.Value == "left" {
+			return "left", nil
+		}
+		if e.Value == "right" {
+			return "right", nil
 		}
 		if e.Value == "this" {
-			return "this_val", nil
+			return "func", nil
 		}
 		if primitives[e.Value] {
 			return fmt.Sprintf("org_string_from_c(arena, \"%s\")", e.Value), nil
 		}
-		return fmt.Sprintf("org_var_%s", e.Value), nil
+		return fmt.Sprintf("org_var_%s", mangleIdentifier(e.Value)), nil
 
 	case *ast.BooleanLiteral:
 		if e.Value {
@@ -349,11 +353,12 @@ func (c *CEmitter) emitBlockLiteral(bl *ast.BlockLiteral) (string, error) {
 		}
 	}
 
+	// If empty body
 	if len(bl.Statements) == 0 {
 		bodyBuilder.WriteString("return NULL;\n")
 	}
 
-	fnParams := "Arena *arena, OrgValue *this_val, OrgValue *args"
+	fnParams := "Arena *arena, OrgValue *func, OrgValue *left, OrgValue *right"
 	fnDef := fmt.Sprintf("static OrgValue *%s(%s) {\n%s}\n", fnName, fnParams, bodyBuilder.String())
 
 	c.auxFunctions = append(c.auxFunctions, fnDef)
@@ -460,7 +465,7 @@ func (c *CEmitter) compileModule(path string) (string, error) {
 	var declsBuilder strings.Builder
 	for b := range c.bindings {
 		if !existingBindings[b] {
-			declsBuilder.WriteString(fmt.Sprintf("    OrgValue *org_var_%s = NULL;\n", b))
+			declsBuilder.WriteString(fmt.Sprintf("    OrgValue *org_var_%s = NULL;\n", mangleIdentifier(b)))
 		}
 	}
 
@@ -479,4 +484,16 @@ func (c *CEmitter) compileModule(path string) (string, error) {
 	c.auxFunctions = append(c.auxFunctions, fnDef)
 
 	return fmt.Sprintf("%s(arena, NULL, NULL)", fnName), nil
+}
+
+func mangleIdentifier(ident string) string {
+	var sb strings.Builder
+	for _, ch := range ident {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' {
+			sb.WriteRune(ch)
+		} else {
+			sb.WriteString(fmt.Sprintf("_%X", ch))
+		}
+	}
+	return sb.String()
 }

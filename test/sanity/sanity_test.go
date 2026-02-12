@@ -46,6 +46,15 @@ func TestSanity(t *testing.T) {
 
 		// <file_name> : "file_name.org" @ org
 		mainContent.WriteString(fmt.Sprintf("%s : \"%s\" @ org;\n", modName, base))
+		// Validate results:
+		// Iterate over module results. If any result is falsy (false, Error, 0, null), print "FAIL".
+		// We use Elvis ?:. If item is truthy, it returns item. If falsy, it returns "FAIL".
+		// We then pipe to a check function.
+		// Since we don't have convenient "if" yet, we flow to stdout if it matches FAIL.
+		// Or simpler: item ?: "FAIL" -> @stdout;
+		// But this prints "true" for passing tests (if item is true).
+		// That's acceptable for verbose output, and we grep for FAIL.
+		mainContent.WriteString(fmt.Sprintf("%s -> { right ?: \"FAIL %s\" -> @stdout } -> @stdout;\n", modName, modName))
 	}
 
 	mainPath := filepath.Join(wd, "main.org")
@@ -94,5 +103,11 @@ func TestSanity(t *testing.T) {
 	// We'll trust the exit code 0 for success in this test harness.
 	// The user explicitly expects FAILURE here because @org is not implemented.
 
+	// 2.3 Check expected result
+	outStr := string(output)
 	t.Logf("Output: %s", output)
+
+	if strings.Contains(outStr, "FAIL") {
+		t.Fatalf("Test failed: output contains FAIL")
+	}
 }

@@ -94,31 +94,42 @@ func (l *CustomLexer) NextToken() token.Token {
 	// Handle structural tokens first
 	switch l.ch {
 	case '(':
-		tok = newToken(token.LPAREN, l.ch)
+		tok.Type = token.LPAREN
+		tok.Literal = "("
 	case ')':
-		tok = newToken(token.RPAREN, l.ch)
+		tok.Type = token.RPAREN
+		tok.Literal = ")"
 	case '[':
-		tok = newToken(token.LBRACKET, l.ch)
+		tok.Type = token.LBRACKET
+		tok.Literal = "["
 	case ']':
-		tok = newToken(token.RBRACKET, l.ch)
+		tok.Type = token.RBRACKET
+		tok.Literal = "]"
 	case '{':
-		tok = newToken(token.LBRACE, l.ch)
+		tok.Type = token.LBRACE
+		tok.Literal = "{"
 	case '}':
-		tok = newToken(token.RBRACE, l.ch)
+		tok.Type = token.RBRACE
+		tok.Literal = "}"
 	case ',':
-		tok = newToken(token.COMMA, l.ch)
+		tok.Type = token.COMMA
+		tok.Literal = ","
 	case ';':
-		tok = newToken(token.SEMICOLON, l.ch)
+		tok.Type = token.SEMICOLON
+		tok.Literal = ";"
 	case ':':
-		tok = newToken(token.COLON, l.ch)
+		tok.Type = token.COLON
+		tok.Literal = ":"
 	case '.':
-		tok = newToken(token.DOT, l.ch)
+		tok.Type = token.DOT
+		tok.Literal = "."
 	case '"':
 		tok.Type = token.STRING
 		tok.Literal = l.readString()
 		return tok
 	case '@':
-		tok = newToken(token.AT, l.ch)
+		tok.Type = token.AT
+		tok.Literal = "@"
 	case '#':
 		// Comment handling
 		if l.peekChar() == '#' && l.peekCharAhead(2) == '#' {
@@ -224,6 +235,10 @@ func (l *CustomLexer) NextToken() token.Token {
 				tok.Type = token.PIPE
 			case "o":
 				tok.Type = token.COMPOSE
+			case "++":
+				tok.Type = token.PLUS_PLUS
+			case "--":
+				tok.Type = token.MINUS_MINUS
 			case "+":
 				tok.Type = token.PLUS
 			case "-":
@@ -252,6 +267,12 @@ func (l *CustomLexer) NextToken() token.Token {
 				tok.Type = token.AND
 			case "||":
 				tok.Type = token.OR
+			case "&":
+				tok.Type = token.BIT_AND
+			case "|":
+				tok.Type = token.BIT_OR
+			case "^":
+				tok.Type = token.BIT_XOR
 			default:
 				tok.Type = token.LookupIdent(literal)
 			}

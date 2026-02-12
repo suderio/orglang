@@ -65,13 +65,15 @@ const (
 	GT_EQ  = ">="
 
 	// Arithmetic
-	PLUS     = "+"
-	MINUS    = "-"
-	NOT      = "~" // Negation
-	ASTERISK = "*"
-	SLASH    = "/"
-	MODULO   = "%"
-	POWER    = "**"
+	PLUS        = "+"
+	PLUS_PLUS   = "++"
+	MINUS       = "-"
+	MINUS_MINUS = "--"
+	NOT         = "~" // Negation
+	ASTERISK    = "*"
+	SLASH       = "/"
+	MODULO      = "%"
+	POWER       = "**"
 
 	// Logic
 	AND     = "&&"

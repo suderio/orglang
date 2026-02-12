@@ -1,2 +1,2 @@
 # Map test
-@stdin -> { args + "!" } -> @stdout;
+@stdin -> { right + "!" } -> @stdout;

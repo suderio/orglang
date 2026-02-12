@@ -2,6 +2,7 @@
 #define ORGLANG_H
 
 #include <fcntl.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +13,9 @@
 typedef struct Arena Arena;
 typedef struct OrgValue OrgValue;
 static OrgValue *org_int_from_str(Arena *a, const char *s);
+static OrgValue *org_dec_from_str(Arena *a, const char *s);
+static OrgValue *org_string_from_c(Arena *a, const char *s);
+static OrgValue *org_error_make(Arena *a);
 static long long org_value_to_long(OrgValue *v);
 static char *org_value_to_cstring(Arena *a, OrgValue *v);
 
@@ -51,21 +55,25 @@ typedef enum {
   ORG_DEC_TYPE,
   ORG_STR_TYPE,
   ORG_LIST_TYPE,
+  ORG_PAIR_TYPE,
   ORG_FUNC_TYPE,
   ORG_RESOURCE_TYPE,
   ORG_RESOURCE_INSTANCE_TYPE,
-  ORG_ITERATOR_TYPE
+  ORG_ITERATOR_TYPE,
+  ORG_ERROR_TYPE
 } OrgType;
 
 typedef struct OrgValue OrgValue; // Forward declaration
+
+// Function Pointer Type: (Arena, FunctionObject, Left, Right)
+typedef OrgValue *(*OrgFuncPtr)(Arena *a, OrgValue *func, OrgValue *left,
+                                OrgValue *right);
 
 typedef struct OrgList {
   OrgValue **items;
   size_t capacity;
   size_t size;
 } OrgList;
-
-typedef OrgValue *(*OrgFuncPtr)(Arena *a, OrgValue *this_val, OrgValue *args);
 
 typedef struct OrgFunction {
   OrgFuncPtr func;
@@ -94,6 +102,10 @@ typedef struct OrgResourceInstance {
   OrgValue *state;
 } OrgResourceInstance;
 
+// Function Pointer Type: (Arena, FunctionObject, Left, Right)
+typedef OrgValue *(*OrgFuncPtr)(Arena *a, OrgValue *func, OrgValue *left,
+                                OrgValue *right);
+
 struct OrgValue {
   OrgType type;
   char *str_val;     // For INT, DEC, STR
@@ -102,7 +114,37 @@ struct OrgValue {
   OrgResource *resource_val;
   OrgResourceInstance *instance_val;
   OrgIterator *iterator_val;
+  OrgValue *err_val; // For ERROR
 };
+
+// ... (helpers) ...
+
+static OrgValue *org_func_create(Arena *a, OrgFuncPtr func) {
+  OrgValue *v = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
+  v->type = ORG_FUNC_TYPE;
+  v->func_val = (OrgFunction *)arena_alloc(a, sizeof(OrgFunction));
+  v->func_val->func = func;
+  return v;
+}
+
+static OrgValue *org_call(Arena *a, OrgValue *fn, OrgValue *left,
+                          OrgValue *right) {
+  if (!fn || fn->type != ORG_FUNC_TYPE) {
+    printf("Runtime Error: Attempt to call non-function\n");
+    return NULL;
+  }
+  if (left == NULL)
+    left = org_error_make(a);
+  if (right == NULL)
+    right = org_error_make(a);
+  return fn->func_val->func(a, fn, left, right);
+}
+
+static OrgValue *org_error_make(Arena *a) {
+  OrgValue *v = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
+  v->type = ORG_ERROR_TYPE;
+  return v;
+}
 
 static OrgValue *org_int_from_str(Arena *a, const char *s) {
   OrgValue *v = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
@@ -131,21 +173,8 @@ static OrgValue *org_string_from_c(Arena *a, const char *s) {
   return v;
 }
 
-static OrgValue *org_func_create(Arena *a, OrgFuncPtr func) {
-  OrgValue *v = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
-  v->type = ORG_FUNC_TYPE;
-  v->func_val = (OrgFunction *)arena_alloc(a, sizeof(OrgFunction));
-  v->func_val->func = func;
-  return v;
-}
-
-static OrgValue *org_call(Arena *a, OrgValue *fn, OrgValue *args) {
-  if (!fn || fn->type != ORG_FUNC_TYPE) {
-    printf("Runtime Error: Attempt to call non-function\n");
-    return NULL;
-  }
-  return fn->func_val->func(a, fn, args);
-}
+static void org_list_append(Arena *a, OrgValue *list, OrgValue *item);
+static OrgValue *org_pair_make(Arena *a, OrgValue *key, OrgValue *val);
 
 static OrgValue *org_resource_create(Arena *a, OrgValue *setup, OrgValue *step,
                                      OrgValue *teardown, OrgValue *next) {
@@ -215,6 +244,13 @@ static OrgValue *org_list_make(Arena *a, int count, ...) {
   return v;
 }
 
+static OrgValue *org_pair_make(Arena *a, OrgValue *key, OrgValue *val) {
+  OrgValue *v = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
+  v->type = ORG_PAIR_TYPE;
+  v->list_val = org_list_make(a, 2, key, val)->list_val;
+  return v;
+}
+
 static OrgValue *org_malloc(Arena *a, long long size) {
   OrgValue *v = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
   v->type = ORG_STR_TYPE;
@@ -281,8 +317,11 @@ static OrgValue *org_syscall(Arena *a, OrgValue *args) {
 
 // Helper for matching keys
 static int org_key_match(OrgValue *itemKey, OrgValue *searchKey) {
-  // Relaxed matching: Compare string values if present
-  if (itemKey->str_val && searchKey->str_val) {
+  if (!itemKey || !searchKey)
+    return 0;
+  if (itemKey->type != searchKey->type)
+    return 0;
+  if (itemKey->type == ORG_STR_TYPE || itemKey->type == ORG_INT_TYPE) {
     return strcmp(itemKey->str_val, searchKey->str_val) == 0;
   }
   return 0;
@@ -290,35 +329,34 @@ static int org_key_match(OrgValue *itemKey, OrgValue *searchKey) {
 
 static OrgValue *org_table_get(Arena *a, OrgValue *table, OrgValue *key) {
   if (!table || table->type != ORG_LIST_TYPE) {
-    printf("Error: Attempt to index non-table\n");
     return NULL;
   }
   OrgList *l = table->list_val;
 
-  // Try Key-Value lookup first (if list items are Pairs)
+  // Try Key-Value lookup first
   for (size_t i = 0; i < l->size; i++) {
     OrgValue *item = l->items[i];
-    if (item->type == ORG_LIST_TYPE && item->list_val->size == 2) {
-      // It's a pair [key, val]
+    if (item->type == ORG_PAIR_TYPE) {
       if (org_key_match(item->list_val->items[0], key)) {
-        OrgValue *val = item->list_val->items[1];
-        return val;
+        return item->list_val->items[1];
       }
     }
   }
 
   // Fallback to Index
-  long long idx = org_value_to_long(key);
+  long long targetIdx = org_value_to_long(key);
+  long long currentPos = 0;
 
-  if (idx < 0 || idx >= l->size) {
-    printf("Error: Index out of bounds %lld (Key: %s, Table Size: %zu)\n", idx,
-           org_value_to_cstring(a, key), l->size);
-    // Don't print error for failed lookup in map usage (e.g. key doesn't exist)
-    // But ? operator expects result.
-    return NULL;
+  for (size_t i = 0; i < l->size; i++) {
+    OrgValue *item = l->items[i];
+    if (item->type != ORG_PAIR_TYPE) {
+      if (currentPos == targetIdx)
+        return item;
+      currentPos++;
+    }
   }
 
-  return l->items[idx];
+  return NULL;
 }
 
 // ... inside org_op_infix ... (I need target context for this replacement)
@@ -336,14 +374,9 @@ static OrgValue *org_value_evaluate(Arena *a, OrgValue *v) {
 }
 
 static OrgValue *org_bool(Arena *a, int val) {
-  OrgValue *v = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
-  v->type = ORG_INT_TYPE; // Reuse int for now
-
-  const char *boolStr = val ? "true" : "false";
-  size_t len = strlen(boolStr) + 1;
-  v->str_val = (char *)arena_alloc(a, len);
-  strcpy(v->str_val, boolStr);
-  return v;
+  if (val)
+    return org_int_from_str(a, "1");
+  return org_int_from_str(a, "0");
 }
 
 static long long org_value_to_long(OrgValue *v) {
@@ -367,11 +400,15 @@ static OrgValue *org_print(Arena *a, OrgValue *v) {
     printf("null\n");
     return v;
   }
-  if (v->type == ORG_STR_TYPE) {
+  if (v->type == ORG_STR_TYPE || v->type == ORG_INT_TYPE ||
+      v->type == ORG_DEC_TYPE) {
     if (v->str_val) {
       printf("%s\n", v->str_val);
     } else {
-      printf("\"\"\n");
+      if (v->type == ORG_STR_TYPE)
+        printf("\"\"\n");
+      else
+        printf("0\n");
     }
   } else if (v->type == ORG_LIST_TYPE) {
     if (!v->list_val) {
@@ -422,8 +459,38 @@ static OrgValue *resource_iterator_next(Arena *a, OrgIterator *it) {
   if (!next_func || next_func->type != ORG_FUNC_TYPE)
     return NULL;
 
-  // Call next(this=instance, args=NULL)
-  return next_func->func_val->func(a, instance_val, NULL);
+  // Call next(this=instance, left=Error, right=NULL)
+  OrgValue *err = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
+  err->type = ORG_ERROR_TYPE;
+  return next_func->func_val->func(a, instance_val, err, NULL);
+}
+
+static OrgValue *list_iterator_next(Arena *a, OrgIterator *it) {
+  OrgList *state_list = it->state->list_val;
+  OrgValue *source_val = state_list->items[0];
+  OrgValue *index_val = state_list->items[1];
+
+  long long index = org_value_to_long(index_val);
+  OrgList *source = source_val->list_val;
+
+  if (index >= source->size) {
+    return NULL;
+  }
+
+  OrgValue *item = source->items[index];
+
+  // Update state logic: Update index
+  char buf[32];
+  sprintf(buf, "%lld", index + 1);
+  state_list->items[1] = org_int_from_str(a, buf);
+
+  return item;
+}
+
+static OrgValue *org_list_iterator(Arena *a, OrgValue *list) {
+  OrgValue *idx = org_int_from_str(a, "0");
+  OrgValue *state = org_list_make(a, 2, list, idx);
+  return org_iterator_create(a, list_iterator_next, state);
 }
 
 static OrgValue *map_iterator_next(Arena *a, OrgIterator *it) {
@@ -440,15 +507,18 @@ static OrgValue *map_iterator_next(Arena *a, OrgIterator *it) {
     return val;
   }
 
+  OrgValue *err = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
+  err->type = ORG_ERROR_TYPE;
+
   if (transform->type == ORG_FUNC_TYPE) {
-    return transform->func_val->func(a, transform, val);
+    return transform->func_val->func(a, transform, err, val);
   }
 
   // If transform is Resource Instance (e.g. detailed step)
   if (transform->type == ORG_RESOURCE_INSTANCE_TYPE) {
     OrgValue *step = transform->instance_val->def->step;
     if (step && step->type == ORG_FUNC_TYPE) {
-      return step->func_val->func(a, transform, val);
+      return step->func_val->func(a, transform, err, val);
     }
   }
   return val;
@@ -471,6 +541,8 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
     // 1. Promote Left to Iterator if possible
     if (left->type == ORG_ITERATOR_TYPE) {
       iter = left;
+    } else if (left->type == ORG_LIST_TYPE || left->type == ORG_PAIR_TYPE) {
+      iter = org_list_iterator(a, left);
     } else if (left->type == ORG_RESOURCE_INSTANCE_TYPE &&
                left->instance_val->def->next) {
       // Create Iterator from Instance
@@ -499,9 +571,11 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
 
           OrgValue *step = right->instance_val->def->step;
           if (step && step->type == ORG_FUNC_TYPE) {
-            // Pass Instance (as 'this') and Result (as 'args')
-            // Note: 'step' expects (this, args)
-            step->func_val->func(a, right, result);
+            // Pass Instance (as 'this') and Result (as 'right')
+            // Left is Error (Unary call context)
+            OrgValue *err = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
+            err->type = ORG_ERROR_TYPE;
+            step->func_val->func(a, right, err, result);
           }
         }
         return NULL; // Flow flows into sink, returns nothing (or maybe the sink
@@ -517,19 +591,25 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
     long long l_val = org_value_to_long(left);
     long long r_val = org_value_to_long(right);
 
+    // Left -> Right
+    // If Right is function, we call it with Left as argument.
+    // Unary call: f(val). `left` param is Error. `right` param is val.
+    OrgValue *err = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
+    err->type = ORG_ERROR_TYPE;
+
     if (right->type == ORG_FUNC_TYPE) {
-      return right->func_val->func(a, right, left);
+      return right->func_val->func(a, right, err, left);
     }
     if (right->type == ORG_RESOURCE_TYPE) {
       OrgValue *step = right->resource_val->step;
       if (step && step->type == ORG_FUNC_TYPE) {
-        return step->func_val->func(a, right, left);
+        return step->func_val->func(a, right, err, left);
       }
     }
     if (right->type == ORG_RESOURCE_INSTANCE_TYPE) {
       OrgValue *step = right->instance_val->def->step;
       if (step && step->type == ORG_FUNC_TYPE) {
-        return step->func_val->func(a, right, left);
+        return step->func_val->func(a, right, err, left);
       }
     }
     return right;
@@ -551,9 +631,29 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
     char buf[64];
     sprintf(buf, "%lld", l_val * r_val);
     return org_int_from_str(a, buf);
-  } else if (strcmp(op, "/") == 0) {
+  } else if (strcmp(op, "**") == 0) {
     char buf[64];
-    sprintf(buf, "%lld", r_val != 0 ? l_val / r_val : 0);
+    sprintf(buf, "%lld", (long long)pow((double)l_val, (double)r_val));
+    return org_int_from_str(a, buf);
+  } else if (strcmp(op, "&") == 0) {
+    char buf[64];
+    sprintf(buf, "%lld", l_val & r_val);
+    return org_int_from_str(a, buf);
+  } else if (strcmp(op, "|") == 0) {
+    char buf[64];
+    sprintf(buf, "%lld", l_val | r_val);
+    return org_int_from_str(a, buf);
+  } else if (strcmp(op, "^") == 0) {
+    char buf[64];
+    sprintf(buf, "%lld", l_val ^ r_val);
+    return org_int_from_str(a, buf);
+  } else if (strcmp(op, "<<") == 0) {
+    char buf[64];
+    sprintf(buf, "%lld", l_val << r_val);
+    return org_int_from_str(a, buf);
+  } else if (strcmp(op, ">>") == 0) {
+    char buf[64];
+    sprintf(buf, "%lld", l_val >> r_val);
     return org_int_from_str(a, buf);
   }
 
@@ -581,9 +681,54 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
     return org_table_get(a, right, left);
   }
 
+  // Error Check ?? (Returns right if left is Error, else left)
+  if (strcmp(op, "??") == 0) {
+    if (left->type == ORG_ERROR_TYPE)
+      return right;
+    return left;
+  }
+
+  // Elvis Operator ?: (Returns right if left is falsy, else left)
+  if (strcmp(op, "?:") == 0) {
+    int falsy = 0;
+    if (left->type == ORG_ERROR_TYPE)
+      falsy = 1;
+    else if (left->type == ORG_INT_TYPE && org_value_to_long(left) == 0)
+      falsy = 1; // Assuming boolean false is 0
+    else if (left->type == ORG_STR_TYPE && strlen(left->str_val) == 0)
+      falsy = 1;
+    else if (left->type == ORG_LIST_TYPE && left->list_val->size == 0)
+      falsy = 1;
+
+    if (falsy)
+      return right;
+    return left;
+  }
+
+  // Comma operator ,
+  if (strcmp(op, ",") == 0) {
+    if (left->type == ORG_LIST_TYPE) {
+      org_list_append(a, left, right);
+      return left;
+    } else {
+      return org_list_make(a, 2, left, right);
+    }
+  }
+
+  // Logical / Bitwise (Non-short-circuit)
+  if (strcmp(op, "&") == 0) {
+    return org_bool(a, (l_val != 0) && (r_val != 0));
+  }
+  if (strcmp(op, "|") == 0) {
+    return org_bool(a, (l_val != 0) || (r_val != 0));
+  }
+  if (strcmp(op, "^") == 0) {
+    return org_bool(a, (l_val != 0) ^ (r_val != 0));
+  }
+
   // Pair Construction :
   if (strcmp(op, ":") == 0) {
-    return org_list_make(a, 2, left, right);
+    return org_pair_make(a, left, right);
   }
 
   else {
@@ -595,6 +740,66 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
 }
 
 static OrgValue *org_op_prefix(Arena *a, const char *op, OrgValue *right) {
+
+  if (strcmp(op, "-") == 0) {
+    // Unary Negation
+    // We can reuse infix '-' with 0 - right?
+    // Or just implement negation.
+    // For now: 0 - right
+    OrgValue *zero = org_int_from_str(a, "0");
+    return org_op_infix(a, "-", zero, right);
+  } else if (strcmp(op, "!") == 0) {
+    long long val = org_value_to_long(right);
+    return org_bool(a, !val);
+  } else if (strcmp(op, "~") == 0) {
+    long long val = org_value_to_long(right);
+    char buf[64];
+    sprintf(buf, "%lld", ~val);
+    return org_int_from_str(a, buf);
+  }
+
+  if (strcmp(op, "~") == 0) {
+    // Logical NOT
+    // Check truthiness
+    int truth = 0;
+    if (right->type == ORG_INT_TYPE || right->type == ORG_DEC_TYPE) {
+      // 0 is false
+      // But we need strict "truthiness".
+      // Reference: "size of 0 is false, >0 is true".
+      // For numbers, we treat 0 as false, non-zero as true?
+      // Or size?
+      // "Boolean operators ... applied to Table literals and Strings ...
+      // size-based truthiness". "Booleans coerced to numbers: true=1, false=0".
+      // Here we want: NOT(val).
+      // If val is "truthy", return false.
+      // What is truthy?
+      // For now, assume C-like: 0 is false.
+      // But we need to support Tables/Strings size.
+      // org_value_to_long returns size/integer.
+      long val = org_value_to_long(right);
+      truth = (val != 0);
+    } else {
+      long val = org_value_to_long(right);
+      truth = (val != 0);
+    }
+    return org_bool(a, !truth);
+  }
+
+  if (strcmp(op, "++") == 0) {
+    // Increment: + 1
+    // Note: Does not modify original variable (unless we pass LValue).
+    // Prefix operator here returns (val + 1).
+    OrgValue *one = org_int_from_str(a, "1");
+    // We assume 'right' supports '+'.
+    // Here we recursively invoke infix '+'
+    return org_op_infix(a, "+", right, one);
+  }
+  if (strcmp(op, "--") == 0) {
+    // Decrement: - 1
+    OrgValue *one = org_int_from_str(a, "1");
+    return org_op_infix(a, "-", right, one);
+  }
+
   // Resource Instantiation (@def)
   if (strcmp(op, "@") == 0) {
     if (right->type == ORG_RESOURCE_TYPE) {
@@ -610,8 +815,11 @@ static OrgValue *org_op_prefix(Arena *a, const char *op, OrgValue *right) {
       OrgValue *setup = right->resource_val->setup;
       if (setup && setup->type == ORG_FUNC_TYPE) {
         // Pass definition as 'this', and maybe some args?
-        // For now, setup takes no args.
-        instance->instance_val->state = setup->func_val->func(a, right, NULL);
+        // Pass definition as 'this', and 'left' operand as argument
+        OrgValue *err = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
+        err->type = ORG_ERROR_TYPE;
+        instance->instance_val->state =
+            setup->func_val->func(a, right, err, NULL);
       }
       return instance;
     }

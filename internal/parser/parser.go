@@ -17,6 +17,8 @@ const (
 	BINDING         = 80  // :
 	DEFAULT         = 100 // Custom
 	EQUALS          = 150 // ==
+	LOGICAL_OR      = 130 // ||
+	LOGICAL_AND     = 140 // &&
 	SUM             = 200 // +
 	PRODUCT         = 300 // *
 	COMPOSE_LVL     = 400 // o
@@ -85,6 +87,8 @@ func New(l *lexer.CustomLexer) *Parser {
 	p.registerPrefix(token.TRUE, p.parseBoolean)
 	p.registerPrefix(token.TRUE, p.parseBoolean)
 	p.registerPrefix(token.FALSE, p.parseBoolean)
+	p.registerPrefix(token.PLUS_PLUS, p.parsePrefixExpression)
+	p.registerPrefix(token.MINUS_MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.RESOURCE, p.parseResourceLiteral)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
@@ -109,6 +113,11 @@ func New(l *lexer.CustomLexer) *Parser {
 	p.registerInfix(token.QUESTION, p.parseInfixExpression)
 	p.registerInfix(token.ELVIS, p.parseInfixExpression)
 	p.registerInfix(token.ERROR_CHECK, p.parseInfixExpression)
+	p.registerInfix(token.AND, p.parseInfixExpression)
+	p.registerInfix(token.OR, p.parseInfixExpression)
+	p.registerInfix(token.BIT_AND, p.parseInfixExpression)
+	p.registerInfix(token.BIT_OR, p.parseInfixExpression)
+	p.registerInfix(token.BIT_XOR, p.parseInfixExpression)
 
 	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()
@@ -368,6 +377,26 @@ func (p *Parser) parseBlockLiteralInfix(left ast.Expression) ast.Expression {
 
 	block := &ast.BlockLiteral{Token: p.curToken} // Token is {
 	block.LeftBP = intLit.Value
+
+	// Enforce NO SPACE between Integer and LBRACE
+	// Int is at `left` (which we don't have token for easily here as it was passed in)?
+	// Wait, parseBlockLiteralInfix is called AFTER parsing left operand.
+	// `left` is an ast.IntegerLiteral, it has a Token field.
+	leftToken := left.(*ast.IntegerLiteral).Token
+	// We need to check if leftToken.Column + len(leftToken.Literal) == p.curToken.Column
+	expectedCol := leftToken.Column + len(leftToken.Literal)
+
+	if p.curToken.Column != expectedCol {
+		// However, line must also match
+		if p.curToken.Line != leftToken.Line {
+			p.errors = append(p.errors, "Binding power must be immediately followed by '{' without space or newline")
+			return nil
+		}
+		// If line matches but col doesn't
+		p.errors = append(p.errors, "Binding power must be immediately followed by '{' without space")
+		return nil
+	}
+
 	block.Statements = []ast.Statement{}
 
 	p.nextToken() // eat {
@@ -386,6 +415,16 @@ func (p *Parser) parseBlockLiteralInfix(left ast.Expression) ast.Expression {
 
 	// Suffix BP
 	if p.peekTokenIs(token.INT) {
+		// Check for no space
+		rbraceToken := p.curToken
+		peekToken := p.peekToken
+		expectedCol := rbraceToken.Column + len(rbraceToken.Literal)
+
+		if peekToken.Line != rbraceToken.Line || peekToken.Column != expectedCol {
+			p.errors = append(p.errors, "Binding power must be immediately preceded by '}' without space")
+			return nil
+		}
+
 		p.nextToken()
 		block.RightBP = p.curToken.Literal
 	}

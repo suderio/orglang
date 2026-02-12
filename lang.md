@@ -630,7 +630,7 @@ stdin : resource [
 
     step: {
         # Ask the OS to read data into our buffer
-        bytes_read : ("read", fd, buffer, 4096) @sys;
+        bytes_read : ["read" fd buffer 4096] @sys;
 
         # If bytes_read <= 0, the stream is closed (None)
         # Otherwise, emit the buffer
@@ -639,7 +639,7 @@ stdin : resource [
 
     teardown: {
         # We don't usually close stdin, but we could if needed
-        # (close, fd) @sys;
+        # [close fd] @sys;
     }
 ]
 
@@ -662,7 +662,7 @@ stdout : resource [
         len : right + 0;
         
         # Push the data to the console
-        ("write", fd, right, len) @sys;
+        ["write" fd right len] @sys;
         
         # Sinks usually pass the data through to allow chaining
         right;
@@ -670,7 +670,7 @@ stdout : resource [
 
     teardown: {
         # Ensure everything is flushed if the OS requires it
-        (fsync, 1) @sys;
+        [fsync 1] @sys;
     }
 ]
 

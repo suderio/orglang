@@ -25,7 +25,7 @@ OrgLang source files are expected to be encoded in **UTF-8**. While the current 
 OrgLang supports two types of comments: single-line and multiline (block) comments.
 
 **Single-line comments** start with the hash character (`#`) and extend to the end of the line. They are ignored by the compiler.
-```orglang
+```rust
 # This is a single-line comment
 x : 42; # Comment after an expression
 ```
@@ -35,7 +35,7 @@ x : 42; # Comment after an expression
 > The multiline comment marker `###` must start at the first column of the line.
 
 Everything between the opening and closing `###` markers is treated as a comment and ignored.
-```orglang
+```rust
 ###
 This is a multiline comment.
 It can span multiple lines.
@@ -113,7 +113,7 @@ In OrgLang, strings are sequences of characters used for text representation. Th
 ##### Single-line Strings
 Single-line strings are enclosed in double quotes (`"`). They must begin and end on the same line.
 
-```orglang
+```rust
 message : "Hello, OrgLang!";
 ```
 
@@ -122,7 +122,7 @@ Multiline strings are enclosed in triple double quotes (`"""`). They can span mu
 
 To keep the source code clean, multiline strings automatically strip **common leading whitespace** (indentation) from all non-empty lines. The amount of whitespace removed is determined by the line with the least indentation.
 
-```orglang
+```rust
 # The resulting string will have no leading spaces on "Line 1" and "Line 2"
 doc : """
     Line 1
@@ -144,7 +144,7 @@ Strings behave like tables when used in arithmetic contexts:
 - **Numeric Value**: When used with arithmetic operators (like `+` or `-`), a string evaluates to its **length**.
 - **No Concatenation**: Unlike many languages, the `+` operator does **not** concatenate strings. Instead, it adds their lengths (or a string's length to a number).
 
-```orglang
+```rust
 s1 : "ABC";
 s2 : "DE";
 res : s1 + s2; # res is 5 (3 + 2)
@@ -187,7 +187,7 @@ A decimal literal consists of an integer part and a fractional part separated by
 ##### Signed Decimal Literals
 Like integers, decimal literals can be preceded by an optional sign (`+` or `-`) with no intervening whitespace.
 
-```orglang
+```rust
 pi : 3.14159;
 negative_small : -0.0001;
 positive : +1.0;
@@ -206,7 +206,7 @@ A rational literal is formed by two integer literals separated by a forward slas
 
 ##### Examples
 
-```orglang
+```rust
 one_half : 1/2;
 three_quarters : 3/4;
 negative_fraction : -1/2;
@@ -225,7 +225,7 @@ A table can be constructed in two ways that produce the same semantic object:
 
 Because `[]` evaluates its contents and collects the results into a new Table, using commas inside brackets results in **nesting**.
 
-```orglang
+```rust
 # A simple table
 t1 : [1 2 3];
 
@@ -244,7 +244,7 @@ A Table consists of a sequence of elements. These elements are categorized into 
 ##### Mixed Content and Indexing
 When a Table contains both bindings and positional elements, the numeric indexes skip the bindings.
 
-```orglang
+```rust
 mixed : [10, "status" : "active", 20];
 
 val0 : mixed.0;        # 10
@@ -258,7 +258,7 @@ Since every Org file is itself a Table, the rules for table literals apply to th
 ##### Laziness in Tables
 Values within a table are **lazy by default**. They are represented as thunks and are only evaluated when accessed (e.g., using the `.` or `?` operators).
 
-```orglang
+```rust
 computation : [1 + 1, 2 * 2]; # Expressions are not evaluated yet
 result : computation.0;       # 2 (evaluation happens here)
 ```
@@ -302,8 +302,24 @@ Arithmetic operators perform standard mathematical calculations. In OrgLang, the
 
 #### Bitwise operators
 
-> [!NOTE]
-> **TBD**: Pure bitwise operations (e.g., bit shifting `<<`, `>>`) are not yet implemented. The symbols `&`, `\|`, and `^` are currently available as **non-short-circuit [Boolean operators](#boolean-operators)**.
+OrgLang supports standard bitwise operations for integers:
+
+-   `&`: Bitwise AND
+-   `|`: Bitwise OR
+-   `^`: Bitwise XOR
+-   `~`: Bitwise NOT (Prefix)
+-   `<<`: Left Shift
+-   `>>`: Right Shift
+
+Example:
+```rust
+10 & 2  // 2
+10 | 5  // 15
+10 ^ 5  // 15
+~0      // -1
+1 << 2  // 4
+8 >> 1  // 4
+```
 
 #### Comparison operators
 
@@ -358,7 +374,7 @@ Resource operators manage the lifecycle and data flow of [Resources](#the-resour
 ##### Resource Instantiation (`@`)
 The prefix `@` operator is used to instantiate a resource. When applied to a resource name or literal, it executes the resource's `setup` block and returns a **Resource Instance**.
 
-```orglang
+```rust
 # Instantiate stdout
 @stdout
 ```
@@ -369,7 +385,7 @@ The binary `->` operator drives data from a source (left operand) to a sink (rig
 - **Source -> Sink**: Drives all data from the source into the sink until completion.
 - **Iterator -> Function**: Creates a new projection (map) that will process elements lazily.
 
-```orglang
+```rust
 # Send a string to stdout
 "Hello" -> @stdout;
 
@@ -408,17 +424,58 @@ In OrgLang, assignment is strictly an operation that binds a value to a name wit
 
 OrgLang allows for the definition of custom operators and the refinement of existing ones using the **Binding Power** syntax. This syntax defines the left and right binding powers, determining the operator's precedence and associativity.
 
-```orglang
+```rust
 # Define a unary operator with prefix power 100
-! : 100 { ... };
+! : 100{ ... };
 
 # Define a binary operator with left power 50 and right power 60
-op : 50 { ... } 60;
+op : 50{ ... }60;
 ```
 
-When an operator is called, the expression within the braces is evaluated with `args` bound to the operand(s). For binary operators, `args` typically contains the right operand, while the left operand is made available via `this` or positional access depending on the context.
+When an operator is called, the expression within the braces is evaluated. The operands are made available via `left` and `right`.
+- **`left`**: The left operand (for binary operators). For unary (prefix) operators, this is typically `Error` or `NULL`.
+- **`right`**: The right operand (for binary operators) or the single operand (for unary operators).
+- **`this`**: A reference to the operator function itself (useful for recursion).
+
+> [!IMPORTANT]
+> **Strict Binding Power Syntax**: When defining custom binding powers, there **must not be any whitespace** between the number and the brace.
+> - **Correct**: `op : 50{ ... }60;`
+> - **Incorrect**: `op : 50 { ... } 60;`
 
 ### Delimiters
+
+Delimiters are structural symbols used for grouping expressions, constructing data structures, and defining blocks of code.
+
+#### Parentheses `( )`
+
+Parentheses are primarily used to **group expressions** and override the default precedence of operators.
+
+```rust
+res : (1 + 2) * 3; # 9
+```
+
+They are also used in function calls, although functionally `f(x)` is just `f` applied to the expression `(x)`.
+
+#### Square Brackets `[ ]`
+
+Square brackets are used to construct **Table literals**. They group a sequence of expressions, evaluate them, and collect the results into a new Table.
+
+```rust
+list : [1 2 3];
+nested : [[1 2] 3];
+```
+
+#### Braces `{ }`
+
+Braces are used to define **function bodies** and create **Operators**. The code inside braces is not executed immediately; instead, it is wrapped in an Operator (or thunk) that is evaluated when called.
+
+```rust
+# A simple function
+add : { left + right };
+
+# A thunk (parameter-less function)
+thunk : { 1 + 1 };
+```
 
 ## Data model
 

@@ -6,11 +6,11 @@ Error : "Error";
 
 stdout : resource [
     step: { 
-        ["write" 1 args -1] @ sys 
+        ["write" 1 right -1] @ sys 
     }
 ];
 
-print : { args -> @stdout };
+print : { right -> @stdout };
 
 stdin : resource [
     # Placeholder for stdin
