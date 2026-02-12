@@ -7,6 +7,7 @@ Summary of pending issues and feature enhancements discovered during sanity test
 - [ ] **Lazy Iterator Indexing**: Operations like `([1 2 3] -> { right + 1 }).0` fail because the pipeline returns a `MapIterator` (lazy), not a Table.
     - [ ] Option A: Support index access directly on Iterators by driving them until the requested index.
     - [ ] Option B: Implement an "eager collection" operator (e.g., `!`) to convert Iterators to Tables (e.g., `(list -> map)! . 0`).
+- [ ] **Operator Orthogonality Review**: Review other non-short-circuit operators (`&`, `|`, `^`) to distinguish between bitwise and logical semantics, similar to the `!` vs `~` separation.
 - [ ] **Extended Assignment Operators**: Implement `:+`, `:-`, `:*`, `:/` etc., in the parser and runtime.
 - [ ] **Standard Library Expansion**: Add more built-in resources for file I/O, networking, and string manipulation.
 

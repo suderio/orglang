@@ -59,6 +59,7 @@ func OperatorBindingPowers() map[token.TokenType]OperatorPower {
 
 	// Prefix Only
 	ops[token.NOT] = OperatorPower{Prefix: bp(0, PREFIX_LVL)}
+	ops[token.LNOT] = OperatorPower{Prefix: bp(0, PREFIX_LVL)}
 
 	return ops
 }

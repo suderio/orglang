@@ -756,54 +756,16 @@ static OrgValue *org_op_prefix(Arena *a, const char *op, OrgValue *right) {
     char buf[64];
     sprintf(buf, "%lld", ~val);
     return org_int_from_str(a, buf);
-  }
-
-  if (strcmp(op, "~") == 0) {
-    // Logical NOT
-    // Check truthiness
-    int truth = 0;
-    if (right->type == ORG_INT_TYPE || right->type == ORG_DEC_TYPE) {
-      // 0 is false
-      // But we need strict "truthiness".
-      // Reference: "size of 0 is false, >0 is true".
-      // For numbers, we treat 0 as false, non-zero as true?
-      // Or size?
-      // "Boolean operators ... applied to Table literals and Strings ...
-      // size-based truthiness". "Booleans coerced to numbers: true=1, false=0".
-      // Here we want: NOT(val).
-      // If val is "truthy", return false.
-      // What is truthy?
-      // For now, assume C-like: 0 is false.
-      // But we need to support Tables/Strings size.
-      // org_value_to_long returns size/integer.
-      long val = org_value_to_long(right);
-      truth = (val != 0);
-    } else {
-      long val = org_value_to_long(right);
-      truth = (val != 0);
-    }
-    return org_bool(a, !truth);
-  }
-
-  if (strcmp(op, "++") == 0) {
+  } else if (strcmp(op, "++") == 0) {
     // Increment: + 1
-    // Note: Does not modify original variable (unless we pass LValue).
-    // Prefix operator here returns (val + 1).
     OrgValue *one = org_int_from_str(a, "1");
-    // We assume 'right' supports '+'.
-    // Here we recursively invoke infix '+'
     return org_op_infix(a, "+", right, one);
-  }
-  if (strcmp(op, "--") == 0) {
+  } else if (strcmp(op, "--") == 0) {
     // Decrement: - 1
     OrgValue *one = org_int_from_str(a, "1");
     return org_op_infix(a, "-", right, one);
-  }
-
-  // Resource Instantiation (@def)
-  if (strcmp(op, "@") == 0) {
+  } else if (strcmp(op, "@") == 0) {
     if (right->type == ORG_RESOURCE_TYPE) {
-      // 1. Create Instance
       OrgValue *instance = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
       instance->type = ORG_RESOURCE_INSTANCE_TYPE;
       instance->instance_val =
@@ -811,11 +773,8 @@ static OrgValue *org_op_prefix(Arena *a, const char *op, OrgValue *right) {
       instance->instance_val->def = right->resource_val;
       instance->instance_val->state = NULL;
 
-      // 2. Call Setup
       OrgValue *setup = right->resource_val->setup;
       if (setup && setup->type == ORG_FUNC_TYPE) {
-        // Pass definition as 'this', and maybe some args?
-        // Pass definition as 'this', and 'left' operand as argument
         OrgValue *err = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
         err->type = ORG_ERROR_TYPE;
         instance->instance_val->state =
@@ -825,7 +784,6 @@ static OrgValue *org_op_prefix(Arena *a, const char *op, OrgValue *right) {
     }
   }
 
-  // Fallback / Other prefixes
   return right;
 }
 

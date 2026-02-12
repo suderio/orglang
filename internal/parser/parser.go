@@ -78,6 +78,7 @@ func New(l *lexer.CustomLexer) *Parser {
 	p.registerPrefix(token.FLOAT, p.parseDecimalLiteral)
 	p.registerPrefix(token.STRING, p.parseStringLiteral)
 	p.registerPrefix(token.NOT, p.parsePrefixExpression)
+	p.registerPrefix(token.LNOT, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.AT, p.parsePrefixExpression) // @sys
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)

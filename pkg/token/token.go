@@ -83,6 +83,7 @@ const (
 	BIT_XOR = "^"
 	LSHIFT  = "<<"
 	RSHIFT  = ">>"
+	LNOT    = "!"
 	// NOT     = "!" // Removed !
 )
 

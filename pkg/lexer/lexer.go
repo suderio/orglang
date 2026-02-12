@@ -219,6 +219,8 @@ func (l *CustomLexer) NextToken() token.Token {
 			switch literal {
 			case "?":
 				tok.Type = token.QUESTION
+			case "!":
+				tok.Type = token.LNOT
 			case "~":
 				tok.Type = token.NOT
 			case "->":

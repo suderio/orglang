@@ -346,7 +346,8 @@ Boolean operators are used to perform logical calculations.
 
 | Operator | Name | Arity | Description |
 | :--- | :--- | :--- | :--- |
-| `~` | NOT | Unary | Returns the logical negation of a boolean value. |
+| `!` | Logical NOT | Unary | Returns the logical negation (e.g., `! 0 = 1`). |
+| `~` | Bitwise NOT | Unary | Returns the bitwise complement (e.g., `~ 0 = -1`). |
 | `&&` | AND | Binary | Short-circuit logical AND (returns `true` only if both are `true`). |
 | `\|\|` | OR | Binary | Short-circuit logical OR (returns `true` if at least one is `true`). |
 | `&` | Logical AND | Binary | **Non-short-circuit** logical AND. |
