@@ -680,25 +680,228 @@ When operations involve different numeric subtypes, the result is promoted to th
 
 ### Atoms
 
-#### Names
+In the Lisp tradition, **Atoms** are the fundamental, indivisible building blocks of OrgLang expressions. An atom represents a specific value or a name that cannot be further broken down by the parser without changing its meaning.
+
+#### Lexical Space and Separation
+
+OrgLang uses whitespace (spaces, tabs, newlines) to separate tokens. The rules for where space is required, optional, or forbidden are critical to distinguishing between atoms and operators.
+
+- **Mandatory Spaces**: Space is required to separate two atoms that would otherwise merge into a single identifier (e.g., `x y` is two names, `xy` is one).
+- **Optional Spaces**: Spaces are optional around delimiters (`( )`, `[ ]`, `{ }`, `,`, `;`) and structural operators (`.`, `:`, `@`, `->`). For example, `(1+1)` is equivalent to `(1 + 1)`.
+- **Forbidden Spaces**:
+    - **Signed Numbers**: There must be **no space** between a leading sign and the digits for it to be parsed as a negative or positive number atom (e.g., `-1` is a Number, `- 1` is the unary negation operator applied to `1`).
+    - **Binding Power**: There must be **no space** between an integer and the braces when defining custom binding powers (e.g., `700{ ... }701`).
+
+#### Names (Identifiers)
+
+Names are tokens used to refer to bindings in a Table.
+- **Characters**: Names can contain letters, digits, underscores, and most symbols (e.g., `isValid?`, `counter_1`, `set!`).
+- **Start Rule**: A name cannot start with a digit (which would initiate a Number).
+- **Exclusions**: Symbols used as delimiters or structural operators (`( )`, `[ ]`, `{ }`, `,`, `.`, `:`, `@`, `;`) cannot be part of a name.
 
 #### Literals
 
+Literals are atoms that represent fixed values.
+
+##### Numbers
+Numbers are represented in three subtypes:
+- **Integers**: Sequences of digits, optionally preceded by a sign (`42`, `-10`).
+- **Decimals**: Digits containing a decimal point (`3.14`, `-.5`).
+- **Rationals**: Represented as a ratio of two integers (`2/3`).
+
+##### Booleans
+The keywords `true` and `false` are the only two Boolean atoms.
+
+##### Strings
+Strings are represented by text enclosed in double quotes:
+- **Simple**: `"Single line string"`.
+- **Multiline**: `"""Triple quotes for multiline text"""`.
+Strings are semantically **Tables** where each character is a value indexed by its position.
+
+#### Atoms in Tables
+
+One of the most important aspects of Atoms in OrgLang is how they interact with Table literals `[ ]`. While the source code of a program is itself a Table where expressions are separated by semicolons `;`, a Table literal uses **space** as its primary separator.
+
+Because spaces are also used to separate atoms within an expression (like `1 + 1`), the use of space inside a Table literal can be ambiguous. In OrgLang, the **space in a Table literal acts as an element separator**, effectively terminating the current expression.
+
+- **Atomic Gathering**: Within `[ ]`, the runtime treats each space-separated sequence as a distinct element if not explicitly grouped.
+- **Binding Greediness**: The binding operator `:` inside a Table literal is "greedy" and attaches the name on its left to the immediate next atom on its right. It does not automatically consume subsequent atoms if they are separated by spaces.
+
+```rust
+# Likely an error if you wanted 'a' to be 2:
+# 1. A binding/pair (a: 1)
+# 2. An operator (+)
+# 3. An integer (1)
+# Resulting Table: [0: +, 1: 1, a: 1]
+table_split : [a: 1 + 1];
+
+# Correct: results in a Table with one specific entry
+# The parentheses group '1 + 1' into a single Atomic Expression
+table_ok : [a: (1 + 1)];
+```
+
 #### Parenthesized forms
 
-#### Tables
+Parentheses `( )` are used to group expressions to override precedence. A parenthesized expression is treated as a single atomic unit (an **Atomic Expression**) during the evaluation of the outer expression or when used as an element in a Table.
 
-#### Operators
+#### Advantages and Limitations
+
+The atomic model of OrgLang provides a unique balance of simplicity and expressive power:
+
+- **Advantage: Extreme Orthogonality**: Because every atom (even Operators and Errors) is a first-class Value, the language's core operators work consistently across all data types.
+- **Advantage: Structural Purity**: Every source file is semantically a Table literal, making the relationship between code and data perfectly transparent.
+- **Limitation: Lexical Sensitivity**: The reliance on space as an element separator in Tables means developers must be mindful of grouping when mixing spaces and operators.
+- **Limitation: Precedence Quirks**: Some operators, like unary negation, have lower precedence than exponentiation (`-1**2 = -1`), which preserves mathematical convention but may surprise users coming from languages where unary operators are always highest.
 
 ### Unary arithmetic and bitwise operations
 
+Unary operators in OrgLang are prefix operators that associate with the immediate expression to their right. They follow the principle of extreme orthogonality, coercing non-numeric types to numbers when necessary.
+
+#### Negation (`-`)
+The unary negation operator reverses the sign of a numeric value.
+- **Integers**: Returns a negative or positive Integer.
+- **Decimals**: Returns a Decimal with the sign reversed.
+- **Precedence Note**: Unary negation has **lower precedence** than exponentiation. This means `-1**2` is evaluated as `-(1**2)`, resulting in `-1`, which aligns with standard mathematical notation.
+
+#### Increment and Decrement (`++`, `--`)
+These operators perform primitive arithmetic addition or subtraction of 1.
+- `++x` is semantically equivalent to `x + 1`.
+- `--x` is semantically equivalent to `x - 1`.
+- Note: These are prefix operators and do not have "postfix" variants in the core language.
+
+#### Bitwise NOT (`~`)
+The bitwise NOT operator returns the bitwise complement of a number.
+- **Coercion**: Non-integers are coerced to Integers before the bitwise inversion occurs.
+- **Result**: Always returns an Integer. For example, `~0` results in `-1` (using two's complement representation).
+
+#### Logical NOT (`!`)
+The logical NOT operator performs a truthiness check and returns a Boolean.
+- **Truthiness**: `0`, `none`, and empty tables/strings are typically considered falsey. All other values are truthy.
+- **Result**: Returns `true` if the operand is falsey, and `false` otherwise.
+
 ### Binary arithmetic operations
+
+Binary arithmetic operations in OrgLang are designed to be permissive and mathematically intuitive. They operate on three numeric types: **Integer**, **Rational**, and **Decimal**.
+
+#### Standard Operators
+
+- **Addition (`+`)**: Performs numeric addition. If both operands are integers and the result is within integer range, results in an **Integer**. If any operand is a Decimal, results in a **Decimal**.
+- **Subtraction (`-`)**: Performs numeric subtraction. Same promotion rules as addition.
+- **Multiplication (`*`)**: Performs numeric multiplication.
+- **Division (`/`)**: Follows specialized precision rules:
+    - **Exact**: `4 / 2` results in **Integer** `2`.
+    - **Inexact**: `3 / 2` results in **Rational** `3/2`.
+    - **Decimal**: If either operand is a Decimal, the result is a **Decimal**.
+- **Modulo (`%`)**: Returns the remainder of division. Typically used with Integers.
+
+#### Exponentiation (`**`)
+
+The exponentiation operator raises the left operand to the power of the right operand.
+- **Precedence**: Higher than unary negation. Thus, `-1**2` is parsed as `-(1**2)` resulting in `-1`.
+- **Promotion**: Often results in a **Decimal** if the power is fractional or negative, unless the result can be exactly represented as an Integer or Rational.
+
+#### Numeric Coercion
+
+Following the principle of **extreme orthogonality**, binary operators automatically coerce non-numeric types into Numbers:
+- **Tables/Strings**: Their **size** is used as the numeric value.
+- **Booleans**: `true` becomes `1`, `false` becomes `0`.
+- **Errors**: Propagate through the operation (the result of any arithmetic with an Error is an Error).
+
+```rust
+# Examples of extreme orthogonality
+[10 20] + [30]; # 2 + 1 = 3
+"abc" * 2;      # 3 * 2 = 6
+true + 1;       # 1 + 1 = 2
+```
 
 ### Shifting operations
 
+Shifting operations in OrgLang are bitwise operations that operate on numeric values, treating them as bit patterns.
+
+#### Left Shift (`<<`)
+The left shift operator moves the bits of the left operand to the left by the number of positions specified by the right operand.
+- **Coercion**: Non-integers are coerced to Integers via their numeric representation or size.
+- **Arithmetic Effect**: Shifting an integer left by $N$ bits is equivalent to multiplying it by $2^N$.
+- **Result**: Always an Integer.
+
+#### Right Shift (`>>`)
+The right shift operator moves the bits of the left operand to the right by the number of positions specified by the right operand.
+- **Coercion**: Standard numeric coercion applies.
+- **Arithmetic Effect**: Shifting an integer right by $N$ bits is equivalent to integer division by $2^N$.
+- **Result**: Always an Integer.
+
+```rust
+# Examples of shifting
+1 << 3;    # 1 * 8 = 8
+16 >> 2;   # 16 / 4 = 4
+"abcd" << 1; # 4 << 1 = 8 (uses string size)
+```
+
 ### Binary bitwise operations
 
+Binary bitwise operators in OrgLang perform bit-by-bit operations on their operands. Like other arithmetic-adjacent operators, they follow the principle of **extreme orthogonality**, coercing non-numeric types to Integers.
+
+#### Bitwise AND (`&`)
+Returns a number where each bit is `1` only if the corresponding bits of both operands are `1`.
+- **Coercion**: Standard numeric/size coercion applies.
+- **Result**: Always an Integer.
+
+#### Bitwise OR (`|`)
+Returns a number where each bit is `1` if at least one of the corresponding bits of the operands is `1`.
+- **Result**: Always an Integer.
+
+#### Bitwise XOR (`^`)
+Returns a number where each bit is `1` if the corresponding bits of the operands are different.
+- **Result**: Always an Integer.
+
+```rust
+# Examples of bitwise operations
+5 & 3;    # 101 & 011 = 001 (1)
+5 | 3;    # 101 | 011 = 111 (7)
+5 ^ 3;    # 101 ^ 011 = 110 (6)
+"abc" & 7; # 3 & 7 = 3 (uses string size)
+```
+
 ### Comparisons
+
+Comparison operators in OrgLang are used to determine the relationship between two values. They primarily operate on numeric values but, following the **extreme orthogonality** principle, will coerce non-numeric types to their numeric equivalent (usually their size).
+
+#### Comparison Operators
+
+| Operator | Description | Example |
+| :--- | :--- | :--- |
+| `=` | Equal to | `x = y` |
+| `<>`, `~=` | Not equal to | `x <> y` |
+| `<` | Less than | `x < y` |
+| `<=` | Less than or equal to | `x <= y` |
+| `>` | Greater than | `x > y` |
+| `>=` | Greater than or equal to | `x >= y` |
+
+- **Result**: All comparison operators return a **Boolean** (`true` or `false`).
+- **Equality/Inequality**: For numbers, this is standard numeric equality. For strings or tables, it typically compares their sizes unless specialized equality is implemented (see [Future Work](file:///home/paulo/org/projetos/OrgLang/TODO.md) for planned unification).
+
+#### Comparison Chaining
+
+OrgLang allows comparison operators to be chained together, such as `x < y < z`. 
+
+- **Semantics**: In a chain of comparisons, each operation is evaluated in sequence. However, unlike languages like Python (where `x < y < z` is `(x < y) and (y < z)`), OrgLang's current execution model evaluates the chain left-to-right, and the **result of the entire chain is the result of the last comparison**.
+- **Example**: `3 < 5 < 2` would evaluate `3 < 5` (returning `true`, which is `1`), then evaluate `1 < 2`, resulting in `true`. 
+
+> [!WARNING]
+> Because of how chaining works, users should be cautious. If a mathematical range check is desired, explicit logical ands should be used once available (e.g., `(x < y) && (y < z)`).
+
+#### Numeric Coercion in Comparisons
+
+As with arithmetic, non-numeric types are coerced to numbers before comparison:
+- **Strings/Tables**: Coerced to their **length/size**.
+- **Booleans**: `true` is `1`, `false` is `0`.
+
+```rust
+# Examples of orthogonal comparisons
+"apple" > "pear"; # 5 > 4 = true
+[1 2] = 2;        # 2 = 2 = true
+true < 2;         # 1 < 2 = true
+```
 
 ### Boolean operations
 

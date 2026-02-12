@@ -5,6 +5,7 @@
 # (6 / 3) = 2; # SKIPPED: Div returns Decimal
 (2 ** 3) = 8;
 (- 1) = (0 - 1);
+-1**2 = -1;
 
 # Bitwise
 (~ 0) = -1;

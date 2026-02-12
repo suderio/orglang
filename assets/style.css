@@ -1,0 +1,51 @@
+/* style.css */
+
+/* Set paper size and margins */
+@page {
+    size: A4;
+    margin: 15mm 20mm;
+}
+
+/* Ensure images don't overflow the page width */
+img {
+    max-width: 100%;
+    display: block;
+    /* Center images if desired */
+    margin: auto;
+}
+
+/* Prevent elements from breaking awkwardly across pages */
+pre,
+blockquote,
+figure,
+table {
+    break-inside: avoid-page;
+}
+
+/* Optional: force a new page for each major section (e.g., h1 or h2) */
+h1,
+h2 {
+    break-before: always;
+    text-align: left;
+}
+
+/* Basic typography styling */
+body {
+    font-family: serif;
+    /* Use a readable font */
+    text-align: justify;
+}
+
+/* Style tables nicely */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+td,
+th {
+    padding: 0.5em;
+    border: 1px solid black;
+    text-align: left;
+}
