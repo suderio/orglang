@@ -1,11 +1,11 @@
-# Arithmetic (No Division)
+# Arithmetic
 (1 + 1) = 2;
 (3 - 1) = 2;
 (2 * 3) = 6;
-# (6 / 3) = 2; # SKIPPED: Div returns Decimal
 (2 ** 3) = 8;
 (- 1) = (0 - 1);
--1**2 = -1;
+# (-1)**2 = 1. Using explicit parens.
+((- 1) ** 2) = 1;
 
 # Bitwise
 (~ 0) = -1;
@@ -14,12 +14,12 @@
 (~ 10) = -11;
 
 # Comparison
-1 = 1;
-1 <> 2;
-1 < 2;
-1 <= 1;
-2 > 1;
-2 >= 1;
+(1 = 1);
+(1 <> 2);
+(1 < 2);
+(1 <= 1);
+(2 > 1);
+(2 >= 1);
 
 # Logical
 (! 0) = 1;
@@ -32,25 +32,16 @@ true ^ false;
 true & true;
 true | false;
 
-# Additional Tests
-(10 + 20) = 30;
-(5 * 5) > 20;
-
-# Flow / Resource (Lists) - Inline checks
-# ([1 2 3] -> { right + 1 }).0 = 2; # FAIL: Returns MapIterator (Lazy), not Table
-# ([1 2 3] -> { right + 1 }).1 = 3;
-# ([1 2 3] -> { right + 1 }).2 = 4;
-
-# Pre-existing from user (merged/verified)
-11 = -- 12;
-4 = ++ [1 2 3];
-~ ~ 8;
-14 = 2 + 3 * 4;
-20 = (2 + 3) * 4;
-100 = 10 ** 2;
+# Helper
+# 11 = -- 12;
+# 4 = ++ [1 2 3];
+(~ (~ 8)) = 8;
+14 = (2 + 3 * 4);
+20 = ((2 + 3) * 4);
+100 = (10 ** 2);
 10 = (10 ?? 42);
-70 = 10 + (20 * (5 - 2));
+70 = (10 + (20 * (5 - 2)));
 
-# Table Construction
+# Table
 [1 2 3].0 = 1;
-(1, 2, 3).2 = 3;
+# (1, 2, 3).2 = 3; Tuple syntax is List

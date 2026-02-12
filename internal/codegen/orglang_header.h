@@ -836,7 +836,16 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
     }
   }
 
-  // Logical / Bitwise (Non-short-circuit)
+  // Logical / Bitwise (Non-short-circuit for simplicity here, short-circuit
+  // handled by emit/thunk ideally) For now we implement basic boolean logic.
+
+  if (strcmp(op, "&&") == 0) {
+    return org_bool(a, (l_val != 0) && (r_val != 0));
+  }
+  if (strcmp(op, "||") == 0) {
+    return org_bool(a, (l_val != 0) || (r_val != 0));
+  }
+
   if (strcmp(op, "&") == 0) {
     return org_bool(a, (l_val != 0) && (r_val != 0));
   }
