@@ -295,7 +295,7 @@ Arithmetic operators perform standard mathematical calculations. In OrgLang, the
 | `-` | Negation | Unary | Returns the additive inverse of a number. |
 | `*` | Multiplication | Binary | Returns the product of two numbers. |
 | `/` | Division | Binary | Returns the quotient of two numbers. |
-| `^` | Power | Binary | Returns the left operand raised to the power of the right operand (Right-associative). |
+| `**` | Power | Binary | Returns the left operand raised to the power of the right operand (Right-associative). |
 
 > [!NOTE]
 > **Implicit Coercion**: Any arithmetic operator can be applied to [Table literals](#table-literals) and [Strings](#string-literals), in which case their **size** is used as the numeric value. Additionally, [Boolean literals](#boolean-literals) are coerced to numbers: `true` is treated as `1`, and `false` as `0`.
@@ -303,7 +303,7 @@ Arithmetic operators perform standard mathematical calculations. In OrgLang, the
 #### Bitwise operators
 
 > [!NOTE]
-> **TBD**: Bitwise operators (e.g., `&`, `\|`, `^`, `<<`, `>>`) are not yet implemented in the current runtime version.
+> **TBD**: Bitwise operators (e.g., `&`, `\|`, `^` (XOR), `<<`, `>>`) are not yet implemented in the current runtime version.
 
 #### Comparison operators
 

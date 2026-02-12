@@ -55,7 +55,8 @@ typedef enum {
   ORG_FUNC_TYPE,
   ORG_RESOURCE_TYPE,
   ORG_RESOURCE_INSTANCE_TYPE,
-  ORG_ITERATOR_TYPE
+  ORG_ITERATOR_TYPE,
+  ORG_ERROR_TYPE
 } OrgType;
 
 typedef struct OrgValue OrgValue; // Forward declaration
@@ -597,6 +598,30 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
   // Table Eval ? (Left=Key/Cond, Right=Table)
   if (strcmp(op, "?") == 0) {
     return org_table_get(a, right, left);
+  }
+
+  // Error Check ?? (Returns right if left is Error, else left)
+  if (strcmp(op, "??") == 0) {
+    if (left->type == ORG_ERROR_TYPE)
+      return right;
+    return left;
+  }
+
+  // Elvis Operator ?: (Returns right if left is falsy, else left)
+  if (strcmp(op, "?:") == 0) {
+    int falsy = 0;
+    if (left->type == ORG_ERROR_TYPE)
+      falsy = 1;
+    else if (left->type == ORG_INT_TYPE && org_value_to_long(left) == 0)
+      falsy = 1; // Assuming boolean false is 0
+    else if (left->type == ORG_STR_TYPE && strlen(left->str_val) == 0)
+      falsy = 1;
+    else if (left->type == ORG_LIST_TYPE && left->list_val->size == 0)
+      falsy = 1;
+
+    if (falsy)
+      return right;
+    return left;
   }
 
   // Comma operator ,
