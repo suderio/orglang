@@ -39,6 +39,8 @@ func OperatorBindingPowers() map[token.TokenType]OperatorPower {
 	ops[token.LPAREN] = OperatorPower{Infix: bp(CALL, CALL), Prefix: bp(0, LOWEST)}
 	ops[token.DOT] = OperatorPower{Infix: bp(CALL, CALL+1)} // Strong left
 	ops[token.QUESTION] = OperatorPower{Infix: bp(CALL, CALL+1)}
+	ops[token.ELVIS] = OperatorPower{Infix: bp(CALL, CALL+1)}
+	ops[token.ERROR_CHECK] = OperatorPower{Infix: bp(CALL, CALL+1)}
 	ops[token.LBRACE] = OperatorPower{Infix: bp(CALL, CALL), Prefix: bp(0, LOWEST)}
 	ops[token.ARROW] = OperatorPower{Infix: bp(FLOW, FLOW+1)}           // Left-associative
 	ops[token.COMMA] = OperatorPower{Infix: bp(COMMA_LVL, COMMA_LVL+1)} // Left-associative

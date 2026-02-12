@@ -345,6 +345,8 @@ Conditional operators allow for selection and branching within expressions witho
 | :--- | :--- | :--- | :--- |
 | `.` | Dot Access | Binary | Static/Positional access to a Table's elements or keys. |
 | `?` | Selection Access | Binary | Conditional or dynamic selection from a Table. Evaluation-driven. |
+| `??` | Error Check | Binary | Returns the right operand if the left operand is an **Error**; otherwise, returns the left operand. |
+| `?:` | Elvis Operator | Binary | Returns the right operand if the left operand is **"falsy"** (false, Error, or an empty Table/String); otherwise, returns the left operand. |
 
 #### Resource operators
 

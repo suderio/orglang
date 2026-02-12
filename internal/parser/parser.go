@@ -107,6 +107,8 @@ func New(l *lexer.CustomLexer) *Parser {
 	p.registerInfix(token.DOT, p.parseInfixExpression)
 	p.registerInfix(token.COMMA, p.parseInfixExpression)
 	p.registerInfix(token.QUESTION, p.parseInfixExpression)
+	p.registerInfix(token.ELVIS, p.parseInfixExpression)
+	p.registerInfix(token.ERROR_CHECK, p.parseInfixExpression)
 
 	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()
