@@ -29,10 +29,15 @@ int main(int argc, char **argv) {
     org_argv = argv;
     Arena *arena = arena_create(1024 * 1024);
     
+    OrgContext ctx;
+    org_sched_init(&ctx, arena);
+
     // Program start
 {{ .Body }}
     // Program end
     
+    org_sched_run(&ctx);
+
     arena_free(arena);
     return 0;
 }
@@ -177,6 +182,8 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 				return fmt.Sprintf("org_malloc(arena, org_value_to_long(%s))", left), nil
 			} else if rightIdent.Value == "main" {
 				return "org_resource_main_create_wrap(arena)", nil
+			} else if rightIdent.Value == "stdout" {
+				return "org_resource_stdout_create_wrap(arena)", nil
 			} else if rightIdent.Value == "org" {
 				// Handled above if Left is String.
 				// If Left is not string, runtime error or dynamic load?

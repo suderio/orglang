@@ -46,6 +46,19 @@ The `|>` operator is the Partial Application operator. It is used to apply a fun
 
 The `main` resource sends a Table with the command line arguments and environment variables to the partial function on the right, and the String substitution operator `$` takes its arguments from the Table.
 
+### Hybrid Scheduler
+
+OrgLang uses a hybrid scheduler that combines **M:N Scheduling** (similar to Go's goroutines, but optimized for our Arena memory model) with **Completion-Based** execution. The scheduler treats every pulse of data as a task that can be suspended and resumed based on hardware availability.
+
+So, the `@main` function is simply the "Seed Pulse" that starts the chain reaction. If we create two pulses, one for each core, the scheduler will execute them in parallel, and when one is finished, it will be automatically deallocated.
+
+```rust
+@main -> "Hello, World!"; -> @stdout;
+@main -> "Burn the World!"; -> @stderr;
+```
+
+This is valid code that will print "Hello, World!" to stdout and "Burn the World!" to stderr, with no guarantee of order.
+
 ### Flux
 
 Flux is the flow of data through transformations in OrgLang. The `->` operator (Push) is as central as variable assignment.

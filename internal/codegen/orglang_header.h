@@ -28,6 +28,7 @@ typedef struct Arena {
   size_t size;
   size_t offset;
   struct OrgResourceInstance *resources_head;
+  void *context; // Points to OrgContext
 } Arena;
 
 static Arena *arena_create(size_t size) {
@@ -36,6 +37,7 @@ static Arena *arena_create(size_t size) {
   a->size = size;
   a->offset = 0;
   a->resources_head = NULL;
+  a->context = NULL;
   return a;
 }
 
@@ -129,6 +131,35 @@ struct OrgValue {
   OrgIterator *iterator_val;
   struct OrgScopedIterator *scoped_val;
   OrgValue *err_val; // For ERROR
+};
+
+// -- Scheduler Types --
+
+typedef struct OrgContext OrgContext;
+typedef struct OrgFiber OrgFiber;
+
+// Fiber Function: (Fiber, Context)
+typedef void (*OrgFiberFunc)(OrgFiber *fiber, OrgContext *ctx);
+
+struct OrgFiber {
+  int id;
+  OrgFiberFunc resume;
+  OrgValue *state;  // For closure/continuation state
+  OrgValue *result; // For passing results between steps
+  OrgFiber *next;   // Queue link
+  OrgFiber *parent; // Who spawned me (optional, for join)
+  Arena *arena;     // Sub-arena (optional)
+};
+
+typedef struct OrgScheduler {
+  OrgFiber *ready_head;
+  OrgFiber *ready_tail;
+  int fiber_id_counter;
+} OrgScheduler;
+
+struct OrgContext {
+  Arena *global_arena;
+  OrgScheduler scheduler;
 };
 
 // ... (helpers) ...
@@ -710,6 +741,164 @@ static OrgValue *org_resource_main_create_wrap(Arena *a) {
   return v;
 }
 
+// -- Stdout Resource --
+
+static OrgValue *org_resource_stdout_step(Arena *a, OrgValue *func,
+                                          OrgValue *left, OrgValue *right) {
+  // func is Instance (this).
+  // left is Error (or upstream source info).
+  // right is the Value to print.
+
+  org_print(a, right);
+  return right;
+}
+
+static OrgValue *org_resource_stdout_create_wrap(Arena *a) {
+  OrgValue *v = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
+  v->type = ORG_RESOURCE_INSTANCE_TYPE;
+  v->instance_val =
+      (OrgResourceInstance *)arena_alloc(a, sizeof(OrgResourceInstance));
+
+  v->instance_val->def = (OrgResource *)arena_alloc(a, sizeof(OrgResource));
+  v->instance_val->def->step = org_func_create(a, org_resource_stdout_step);
+  v->instance_val->def->setup = NULL;
+  v->instance_val->def->teardown = NULL;
+  v->instance_val->def->next = NULL;
+
+  v->instance_val->state = NULL;
+
+  arena_resource_register(a, v->instance_val);
+  return v;
+}
+
+// -- Scheduler Implementation --
+
+static void org_sched_init(OrgContext *ctx, Arena *global_arena) {
+  ctx->global_arena = global_arena;
+  global_arena->context = ctx;
+  ctx->scheduler.ready_head = NULL;
+  ctx->scheduler.ready_tail = NULL;
+  ctx->scheduler.fiber_id_counter = 1;
+}
+
+static OrgFiber *org_sched_spawn(OrgContext *ctx, OrgFiberFunc func,
+                                 OrgValue *state) {
+  // Use global arena for now for Fiber structs.
+  Arena *a = ctx->global_arena;
+
+  OrgFiber *f = (OrgFiber *)arena_alloc(a, sizeof(OrgFiber));
+  f->id = ctx->scheduler.fiber_id_counter++;
+  f->resume = func;
+  f->state = state;
+  f->result = NULL;
+  f->next = NULL;
+  f->parent = NULL;
+  f->arena = a; // Share global arena for now
+
+  // Enqueue
+  if (ctx->scheduler.ready_tail) {
+    ctx->scheduler.ready_tail->next = f;
+    ctx->scheduler.ready_tail = f;
+  } else {
+    ctx->scheduler.ready_head = f;
+    ctx->scheduler.ready_tail = f;
+  }
+
+  return f;
+}
+
+static void org_sched_run(OrgContext *ctx) {
+  // Event Loop
+  while (ctx->scheduler.ready_head) {
+    // 1. Pop
+    OrgFiber *f = ctx->scheduler.ready_head;
+    ctx->scheduler.ready_head = f->next;
+    if (!ctx->scheduler.ready_head) {
+      ctx->scheduler.ready_tail = NULL;
+    }
+
+    // 2. Run
+    if (f->resume) {
+      f->resume(f, ctx);
+    }
+
+    // 3. IO Poll (Mock)
+    // if (io_queue_has_completions) process();
+  }
+}
+
+// -- Scheduler Tasks --
+
+static void org_sink_task(OrgFiber *fiber, OrgContext *ctx) {
+  OrgValue *state = fiber->state;
+  // state = [Item, Sink]
+  if (state->type != ORG_LIST_TYPE || state->list_val->size < 2)
+    return;
+
+  OrgValue *item = state->list_val->items[0];
+  OrgValue *sink = state->list_val->items[1];
+  Arena *a = fiber->arena;
+
+  // Logic from org_op_infix default push behavior
+
+  // 1. If Sink is Function
+  if (sink->type == ORG_FUNC_TYPE) {
+    OrgValue *err = org_error_make(a);
+    sink->func_val->func(a, sink, err, item);
+    return;
+  }
+
+  // 2. If Sink is Resource Instance
+  if (sink->type == ORG_RESOURCE_INSTANCE_TYPE) {
+    OrgValue *step = sink->instance_val->def->step;
+    if (step && step->type == ORG_FUNC_TYPE) {
+      OrgValue *err = org_error_make(a);
+      step->func_val->func(a, sink, err, item);
+    }
+    return;
+  }
+
+  // 3. Fallback / TODO: Broadcast lists etc.
+}
+
+static void org_pump_task(OrgFiber *fiber, OrgContext *ctx) {
+  OrgValue *state = fiber->state;
+  // state = [Iterator, Sink]
+  if (state->type != ORG_LIST_TYPE || state->list_val->size < 2)
+    return;
+
+  OrgValue *iter = state->list_val->items[0];
+  OrgValue *sink = state->list_val->items[1];
+  Arena *a = fiber->arena;
+
+  // Get Next Item
+  // Iterator Next might need Arena. Use Fiber's arena.
+  if (iter->type != ORG_ITERATOR_TYPE)
+    return;
+
+  OrgValue *item = iter->iterator_val->next(a, iter->iterator_val);
+
+  // Check End
+  if (!item)
+    return; // Null means end
+  if (item->type == ORG_STR_TYPE && strcmp(item->str_val, "Error") == 0)
+    return;
+
+  // Spawn Sink Task
+  OrgValue *task_state = org_list_make(a, 2, item, sink);
+  org_sched_spawn(ctx, org_sink_task, task_state);
+
+  // Requeue Self
+  if (ctx->scheduler.ready_tail) {
+    ctx->scheduler.ready_tail->next = fiber;
+    ctx->scheduler.ready_tail = fiber;
+  } else {
+    ctx->scheduler.ready_head = fiber;
+    ctx->scheduler.ready_tail = fiber;
+  }
+  fiber->next = NULL;
+}
+
 static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
                               OrgValue *right) {
   if (left == NULL)
@@ -717,15 +906,14 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
   if (right == NULL)
     right = org_error_make(a);
 
+  OrgContext *ctx = (OrgContext *)a->context;
+
   // Flow Operator -> (Pull / Lazy / Map Support)
   if (strcmp(op, "->") == 0) {
-    // right->type);
     OrgValue *iter = NULL;
 
     // 0. Middleware / Scoped Iterator
     if (right->type == ORG_RESOURCE_TYPE) {
-      // Create Scoped Iterator logic
-      OrgValue *iter = NULL;
       if (left->type == ORG_ITERATOR_TYPE) {
         iter = left;
       } else {
@@ -734,81 +922,47 @@ static OrgValue *org_op_infix(Arena *a, const char *op, OrgValue *left,
       return org_scoped_iterator_create(a, iter, right);
     }
 
-    // 1. Promote Left to Iterator if possible
-    if (left->type == ORG_ITERATOR_TYPE) {
-      iter = left;
-    } else if (left->type == ORG_LIST_TYPE || left->type == ORG_PAIR_TYPE) {
-      iter = org_list_iterator(a, left);
-    } else if (left->type == ORG_RESOURCE_INSTANCE_TYPE &&
-               left->instance_val->def->next) {
-      // Create Iterator from Instance
-      // We pass the Instance as state to the helper
-      iter = org_iterator_create(a, resource_iterator_next, left);
-    }
+    // 1. Promote Left to Iterator IF appropriate
+    // Logic: If we are piping into a Transform (Func), we want an Iterator
+    // (Lazy Map). If we are piping into a Sink (ResourceInstance), we want a
+    // Pump Task.
 
-    // 2. If Left is Iterator
-    if (iter) {
-      // Case A: Right is Function/Transform -> Lazy Map
+    int right_is_sink = (right->type == ORG_RESOURCE_INSTANCE_TYPE);
+
+    if (left->type == ORG_ITERATOR_TYPE || left->type == ORG_LIST_TYPE ||
+        left->type == ORG_PAIR_TYPE ||
+        (left->type == ORG_RESOURCE_INSTANCE_TYPE &&
+         left->instance_val->def->next)) {
+      // Potential Iterator Context
+      if (left->type == ORG_ITERATOR_TYPE)
+        iter = left;
+      else if (left->type == ORG_LIST_TYPE || left->type == ORG_PAIR_TYPE)
+        iter = org_list_iterator(a, left);
+      else
+        iter = org_iterator_create(a, resource_iterator_next, left);
+
       if (right->type == ORG_FUNC_TYPE) {
+        // Lazy Map
         OrgValue *state = org_list_make(a, 2, iter, right);
         return org_iterator_create(a, map_iterator_next, state);
       }
 
-      // Case B: Right is Sink  // Resource Instantiation (@def)
-      if (right->type == ORG_RESOURCE_INSTANCE_TYPE) {
-        OrgValue *result = NULL;
-        while ((result = iter->iterator_val->next(a, iter->iterator_val)) !=
-               NULL) {
-          // Check for Error/EOF
-          if (result->type == ORG_STR_TYPE &&
-              strcmp(result->str_val, "Error") == 0) {
-            break;
-          }
-
-          OrgValue *step = right->instance_val->def->step;
-          if (step && step->type == ORG_FUNC_TYPE) {
-            // Pass Instance (as 'this') and Result (as 'right')
-            // Left is Error (Unary call context)
-            OrgValue *err = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
-            err->type = ORG_ERROR_TYPE;
-            step->func_val->func(a, right, err, result);
-          }
+      if (right_is_sink) {
+        // Spawn Pump Task
+        if (ctx) {
+          OrgValue *state = org_list_make(a, 2, iter, right);
+          org_sched_spawn(ctx, org_pump_task, state);
         }
-        return NULL; // Flow flows into sink, returns nothing (or maybe the sink
-                     // state?)
-      }
-
-      // Case C: Right is List (Broadcast) - Not impl yet for Pull
-      // Fallback to push behavior if Right is not func/resource?
-    }
-
-    // Default Push Behavior (Legacy/Value)
-    // Left -> Right
-    long long l_val = org_value_to_long(left);
-    long long r_val = org_value_to_long(right);
-
-    // Left -> Right
-    // If Right is function, we call it with Left as argument.
-    // Unary call: f(val). `left` param is Error. `right` param is val.
-    OrgValue *err = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
-    err->type = ORG_ERROR_TYPE;
-
-    if (right->type == ORG_FUNC_TYPE) {
-      return right->func_val->func(a, right, err, left);
-    }
-    if (right->type == ORG_RESOURCE_TYPE) {
-      OrgValue *step = right->resource_val->step;
-      if (step && step->type == ORG_FUNC_TYPE) {
-        return step->func_val->func(a, right, err, left);
+        return NULL;
       }
     }
-    if (right->type == ORG_RESOURCE_INSTANCE_TYPE) {
-      OrgValue *step = right->instance_val->def->step;
-      if (step && step->type == ORG_FUNC_TYPE) {
-        return step->func_val->func(a, right, err, left);
-      }
+
+    // Default: Spawn Single Task (Value -> Sink/Func)
+    if (ctx) {
+      OrgValue *state = org_list_make(a, 2, left, right);
+      org_sched_spawn(ctx, org_sink_task, state);
     }
-    return right;
+    return left;
   }
 
   long long l_val = org_value_to_long(left);

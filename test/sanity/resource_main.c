@@ -2,13 +2,13 @@
 #include <stdio.h>
 
 // Globals
+static OrgValue *org_var_stdout = NULL;
+static OrgValue *org_var_print = NULL;
+static OrgValue *org_var_buf = NULL;
 static OrgValue *org_var_n = NULL;
 static OrgValue *org_var_stdin = NULL;
 static OrgValue *org_var_args = NULL;
 static OrgValue *org_var_Error = NULL;
-static OrgValue *org_var_stdout = NULL;
-static OrgValue *org_var_print = NULL;
-static OrgValue *org_var_buf = NULL;
 
 
 // Auxiliary Functions
@@ -41,6 +41,9 @@ int main(int argc, char **argv) {
     org_argv = argv;
     Arena *arena = arena_create(1024 * 1024);
     
+    OrgContext ctx;
+    org_sched_init(&ctx, arena);
+
     // Program start
     (org_var_Error = org_string_from_c(arena, "Error"), org_pair_make(arena, org_string_from_c(arena, "Error"), org_var_Error));
     (org_var_stdout = org_resource_create(arena, NULL, org_func_create(arena, org_fn_0), NULL, NULL), org_pair_make(arena, org_string_from_c(arena, "stdout"), org_var_stdout));
@@ -52,6 +55,8 @@ int main(int argc, char **argv) {
 
     // Program end
     
+    org_sched_run(&ctx);
+
     arena_free(arena);
     return 0;
 }
