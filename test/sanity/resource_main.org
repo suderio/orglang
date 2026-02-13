@@ -1,0 +1,6 @@
+"Start" -> @stdout;
+@main -> {
+  args : right;
+  args -> @stdout;
+} -> @stdout;
+"End" -> @stdout;

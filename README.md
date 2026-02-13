@@ -10,6 +10,50 @@ OrgLang is a programming language designed with a focus on **orthogonality**, **
 
 OrgLang aims to provide a premium development experience where the code is as beautiful as the systems it builds.
 
+## Installation
+
+OrgLang is currently in development and is not yet available for installation. Stay tuned for updates!
+
+## Concepts
+
+### Tables
+
+Tables are the fundamental data structure in OrgLang. They are collections of pairs that represent scopes, modules, and objects.
+
+### Resources
+
+Resources are used to represent side effects and external resources (Files, Networks, System calls) in OrgLang. They are reified as **Resources**, allowing for deterministic and scoped management of effects.
+
+The execution of a program is a sequence of transformations that are applied to a **Table**. Each transformation is a function that takes a **Table** as input and returns a **Table** as output.
+
+The typical `main` function of most languages in OrgLang would be:
+
+```rust
+@main -> "Hello, World!"; -> @stdout;
+```
+
+While a more robust example would be:
+```rust
+@main -> "Hello, World!"; -> @stdout ?? @stderr;
+```
+
+Every interaction with the outside world is a resource. The builtin `main` resource is the entry point of an executable. The main resource pulls data from the command line arguments and environment variables. A more complex example would be:
+```rust
+@main -> "Hello, $0!" |> $; -> @stdout ?? @stderr;
+```
+
+The `|>` operator is the Partial Application operator. It is used to apply a function to a value and return a new function that can be applied to another value. This allows us to create a unary operator that uses the value pulled from the resource on the left - `main` - as an argument.
+
+The `main` resource sends a Table with the command line arguments and environment variables to the partial function on the right, and the String substitution operator `$` takes its arguments from the Table.
+
+### Flux
+
+Flux is the flow of data through transformations in OrgLang. The `->` operator (Push) is as central as variable assignment.
+
+### Uniformity
+
+Everything in OrgLang is data. The fundamental data structure is the **Table**—a collection of pairs that represents scopes, modules, and objects.
+
 ## Notation
 
 This manual uses the following conventions:

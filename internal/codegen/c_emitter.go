@@ -24,7 +24,9 @@ const cTemplate = `#include "orglang.h"
 // Auxiliary Functions
 {{ .AuxFunctions }}
 
-int main() {
+int main(int argc, char **argv) {
+    org_argc = argc;
+    org_argv = argv;
     Arena *arena = arena_create(1024 * 1024);
     
     // Program start
@@ -119,6 +121,11 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 		return fmt.Sprintf("org_string_from_c(arena, \"%s\")", e.Value), nil
 
 	case *ast.PrefixExpression:
+		if e.Operator == "@" {
+			if ident, ok := e.Right.(*ast.Identifier); ok && ident.Value == "main" {
+				return "org_resource_main_create_wrap(arena)", nil
+			}
+		}
 		right, err := c.emitExpression(e.Right)
 		if err != nil {
 			return "", err
@@ -168,6 +175,8 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 			} else if rightIdent.Value == "mem" {
 				// org_malloc(arena, org_value_to_long(left))
 				return fmt.Sprintf("org_malloc(arena, org_value_to_long(%s))", left), nil
+			} else if rightIdent.Value == "main" {
+				return "org_resource_main_create_wrap(arena)", nil
 			} else if rightIdent.Value == "org" {
 				// Handled above if Left is String.
 				// If Left is not string, runtime error or dynamic load?

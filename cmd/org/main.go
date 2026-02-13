@@ -60,9 +60,9 @@ func main() {
 	buildCmd.Flags().StringVarP(&outputFlag, "output", "o", "", "Output binary name")
 
 	var runCmd = &cobra.Command{
-		Use:   "run [file]",
+		Use:   "run [file] [args...]",
 		Short: "Compile and run an OrgLang source file",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MinimumNArgs(1),
 		Run:   runRun,
 	}
 
@@ -87,7 +87,9 @@ func runRun(cmd *cobra.Command, args []string) {
 
 	// Run the binary
 	absPath, _ := filepath.Abs(outputFile)
-	runCmd := exec.Command(absPath)
+	// Pass remaining args to the executable
+	runArgs := args[1:]
+	runCmd := exec.Command(absPath, runArgs...)
 	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stderr
 	runCmd.Stdin = os.Stdin
