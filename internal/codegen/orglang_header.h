@@ -666,12 +666,12 @@ static OrgValue *org_scoped_iterator_create(Arena *a, OrgValue *upstream_iter,
   return v;
 }
 
-// -- Main Resource --
+// -- Args Resource --
 
 static int org_argc;
 static char **org_argv;
 
-static OrgValue *org_resource_main_next(Arena *a, OrgIterator *it) {
+static OrgValue *org_resource_args_next(Arena *a, OrgIterator *it) {
   // state is int (0 = not emitted, 1 = emitted)
   OrgValue *state = it->state;
   long long emitted = org_value_to_long(state);
@@ -694,10 +694,10 @@ static OrgValue *org_resource_main_next(Arena *a, OrgIterator *it) {
   return args_list;
 }
 
-// Special Main Iterator
-// We will define `org_resource_main_next_func` compatible with OrgFuncPtr.
+// Special Args Iterator
+// We will define `org_resource_args_next_func` compatible with OrgFuncPtr.
 
-static OrgValue *org_resource_main_next_func(Arena *a, OrgValue *func,
+static OrgValue *org_resource_args_next_func(Arena *a, OrgValue *func,
                                              OrgValue *left, OrgValue *right) {
   // func is Instance (passed by resource_iterator_next)
   if (!func || func->type != ORG_RESOURCE_INSTANCE_TYPE)
@@ -723,7 +723,7 @@ static OrgValue *org_resource_main_next_func(Arena *a, OrgValue *func,
   return args_list;
 }
 
-static OrgValue *org_resource_main_create_wrap(Arena *a) {
+static OrgValue *org_resource_args_create_wrap(Arena *a) {
   OrgValue *v = (OrgValue *)arena_alloc(a, sizeof(OrgValue));
   v->type = ORG_RESOURCE_INSTANCE_TYPE;
   v->instance_val =
@@ -731,7 +731,7 @@ static OrgValue *org_resource_main_create_wrap(Arena *a) {
 
   // Mock Def
   v->instance_val->def = (OrgResource *)arena_alloc(a, sizeof(OrgResource));
-  v->instance_val->def->next = org_func_create(a, org_resource_main_next_func);
+  v->instance_val->def->next = org_func_create(a, org_resource_args_next_func);
   // setup/step/teardown NULL
 
   // Initial State: "0"

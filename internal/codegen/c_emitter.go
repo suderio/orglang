@@ -127,8 +127,8 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 
 	case *ast.PrefixExpression:
 		if e.Operator == "@" {
-			if ident, ok := e.Right.(*ast.Identifier); ok && ident.Value == "main" {
-				return "org_resource_main_create_wrap(arena)", nil
+			if ident, ok := e.Right.(*ast.Identifier); ok && ident.Value == "args" {
+				return "org_resource_args_create_wrap(arena)", nil
 			}
 		}
 		right, err := c.emitExpression(e.Right)
@@ -180,8 +180,8 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 			} else if rightIdent.Value == "mem" {
 				// org_malloc(arena, org_value_to_long(left))
 				return fmt.Sprintf("org_malloc(arena, org_value_to_long(%s))", left), nil
-			} else if rightIdent.Value == "main" {
-				return "org_resource_main_create_wrap(arena)", nil
+			} else if rightIdent.Value == "args" {
+				return "org_resource_args_create_wrap(arena)", nil
 			} else if rightIdent.Value == "stdout" {
 				return "org_resource_stdout_create_wrap(arena)", nil
 			} else if rightIdent.Value == "org" {

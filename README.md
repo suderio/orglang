@@ -29,32 +29,32 @@ The execution of a program is a sequence of transformations that are applied to 
 The typical `main` function of most languages in OrgLang would be:
 
 ```rust
-@main -> "Hello, World!"; -> @stdout;
+@args -> "Hello, World!"; -> @stdout;
 ```
 
 While a more robust example would be:
 ```rust
-@main -> "Hello, World!"; -> @stdout ?? @stderr;
+@args -> "Hello, World!"; -> @stdout ?? @stderr;
 ```
 
-Every interaction with the outside world is a resource. The builtin `main` resource is the entry point of an executable. The main resource pulls data from the command line arguments and environment variables. A more complex example would be:
+Every interaction with the outside world is a resource. The builtin `args` resource is the entry point of an executable. The args resource pulls data from the command line arguments and environment variables. A more complex example would be:
 ```rust
-@main -> "Hello, $0!" |> $; -> @stdout ?? @stderr;
+@args -> "Hello, $0!" |> $; -> @stdout ?? @stderr;
 ```
 
-The `|>` operator is the Partial Application operator. It is used to apply a function to a value and return a new function that can be applied to another value. This allows us to create a unary operator that uses the value pulled from the resource on the left - `main` - as an argument.
+The `|>` operator is the Partial Application operator. It is used to apply a function to a value and return a new function that can be applied to another value. This allows us to create a unary operator that uses the value pulled from the resource on the left - `args` - as an argument.
 
-The `main` resource sends a Table with the command line arguments and environment variables to the partial function on the right, and the String substitution operator `$` takes its arguments from the Table.
+The `args` resource sends a Table with the command line arguments and environment variables to the partial function on the right, and the String substitution operator `$` takes its arguments from the Table.
 
 ### Hybrid Scheduler
 
 OrgLang uses a hybrid scheduler that combines **M:N Scheduling** (similar to Go's goroutines, but optimized for our Arena memory model) with **Completion-Based** execution. The scheduler treats every pulse of data as a task that can be suspended and resumed based on hardware availability.
 
-So, the `@main` function is simply the "Seed Pulse" that starts the chain reaction. If we create two pulses, one for each core, the scheduler will execute them in parallel, and when one is finished, it will be automatically deallocated.
+So, the `@args` function is simply the "Seed Pulse" that starts the chain reaction. If we create two pulses, one for each core, the scheduler will execute them in parallel, and when one is finished, it will be automatically deallocated.
 
 ```rust
-@main -> "Hello, World!"; -> @stdout;
-@main -> "Burn the World!"; -> @stderr;
+@args -> "Hello, World!"; -> @stdout;
+@args -> "Burn the World!"; -> @stderr;
 ```
 
 This is valid code that will print "Hello, World!" to stdout and "Burn the World!" to stderr, with no guarantee of order.

@@ -1,13 +1,13 @@
-# Design: Main Resource
+# Design: Args Resource
 
 ## Goal
-Implement the `@main` resource to allow OrgLang programs to interact with command-line arguments and environment variables, as described in the specification.
+Implement the `@args` resource to allow OrgLang programs to interact with command-line arguments and environment variables, as described in the specification.
 
 ## Specification (from README)
-- `@main` is a built-in resource.
+- `@args` is a built-in resource.
 - It pulls data from command line arguments and environment variables.
 - It sends a **Table** containing these values.
-- Usage example: `@main -> ...`
+- Usage example: `@args -> ...`
 
 ## Implementation Details
 
