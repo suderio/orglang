@@ -1,0 +1,7 @@
+basic : "basic.org" @ org;
+resource_args : "resource_args.org" @ org;
+
+main: {
+  basic -> { right ?: "FAIL basic" -> @stdout } -> @stdout;
+  resource_args -> { right ?: "FAIL resource_args" -> @stdout } -> @stdout;
+};

@@ -29,17 +29,17 @@ The execution of a program is a sequence of transformations that are applied to 
 The typical `main` function of most languages in OrgLang would be:
 
 ```rust
-@args -> "Hello, World!"; -> @stdout;
+main: {@args -> "Hello, World!" -> @stdout};
 ```
 
 While a more robust example would be:
 ```rust
-@args -> "Hello, World!"; -> @stdout ?? @stderr;
+main: {@args -> "Hello, World!" -> @stdout ?? @stderr};
 ```
 
 Every interaction with the outside world is a resource. The builtin `args` resource is the entry point of an executable. The args resource pulls data from the command line arguments and environment variables. A more complex example would be:
 ```rust
-@args -> "Hello, $0!" |> $; -> @stdout ?? @stderr;
+main: {@args -> "Hello, $0!" |> $ -> @stdout ?? @stderr};
 ```
 
 The `|>` operator is the Partial Application operator. It is used to apply a function to a value and return a new function that can be applied to another value. This allows us to create a unary operator that uses the value pulled from the resource on the left - `args` - as an argument.
@@ -53,8 +53,8 @@ OrgLang uses a hybrid scheduler that combines **M:N Scheduling** (similar to Go'
 So, the `@args` function is simply the "Seed Pulse" that starts the chain reaction. If we create two pulses, one for each core, the scheduler will execute them in parallel, and when one is finished, it will be automatically deallocated.
 
 ```rust
-@args -> "Hello, World!"; -> @stdout;
-@args -> "Burn the World!"; -> @stderr;
+main: {@args -> ["Hello, World!" -> @stdout 
+                "Burn the World!" -> @stderr]};
 ```
 
 This is valid code that will print "Hello, World!" to stdout and "Burn the World!" to stderr, with no guarantee of order.

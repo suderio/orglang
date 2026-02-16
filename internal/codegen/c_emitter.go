@@ -50,6 +50,7 @@ type CEmitter struct {
 	ModuleLoader   func(string) (*ast.Program, error)
 	ModuleRegistry map[string]string // Path -> FunctionName
 	bindings       map[string]bool
+	ScopePrefix    string
 }
 
 func NewCEmitter(loader func(string) (*ast.Program, error)) *CEmitter {
@@ -61,6 +62,7 @@ func NewCEmitter(loader func(string) (*ast.Program, error)) *CEmitter {
 		ModuleLoader:   loader,
 		ModuleRegistry: make(map[string]string),
 		bindings:       make(map[string]bool),
+		ScopePrefix:    "",
 	}
 }
 
@@ -84,7 +86,8 @@ func (c *CEmitter) Generate(program *ast.Program) (string, error) {
 	// Pre-declarations for globals
 	var globalsBuilder strings.Builder
 	for b := range c.bindings {
-		globalsBuilder.WriteString(fmt.Sprintf("static OrgValue *org_var_%s = NULL;\n", b))
+		// FIX: Use mangleIdentifier(b) to ensure valid C identifiers
+		globalsBuilder.WriteString(fmt.Sprintf("static OrgValue *org_var_%s = NULL;\n", mangleIdentifier(b)))
 	}
 
 	data := TemplateData{
@@ -94,6 +97,41 @@ func (c *CEmitter) Generate(program *ast.Program) (string, error) {
 	}
 
 	var output bytes.Buffer
+	if err := c.tmpl.Execute(&output, data); err != nil {
+		return "", err
+	}
+
+	// Post-process logic for main enforcement
+	// We want to add this to the Body, but since Body is already stringified in data,
+	// and we are using a template, it's cleaner to append to Body in the template data
+	// OR just append to the output if the template structure allows.
+	// Actually, let's look at the template:
+	// {{ .Body }}
+	// // Program end
+	// org_sched_run(&ctx);
+	//
+	// We want to execute 'main' BEFORE org_sched_run.
+	// So we can append to bodyBuilder before creating data.
+
+	// Append main execution logic to bodyBuilder
+	mainCheck := `
+    if (org_var_main) {
+        org_call(arena, org_var_main, NULL, NULL);
+    } else {
+        fprintf(stderr, "No main key in the org file\n");
+        exit(1);
+    }
+`
+	bodyBuilder.WriteString(mainCheck)
+
+	// Re-create data with updated Body
+	data = TemplateData{
+		Globals:      globalsBuilder.String(),
+		Body:         bodyBuilder.String(),
+		AuxFunctions: strings.Join(c.auxFunctions, "\n"),
+	}
+
+	output.Reset()
 	if err := c.tmpl.Execute(&output, data); err != nil {
 		return "", err
 	}
@@ -255,10 +293,15 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 
 		if e.Operator == ":" {
 			// Pair: left : right -> [left, right]
+			// Pair: left : right -> [left, right]
 			// If left is Identifier, it's a binding.
 			if ident, ok := e.Left.(*ast.Identifier); ok {
-				c.bindings[ident.Value] = true
-				mangled := mangleIdentifier(ident.Value)
+				name := ident.Value
+				if c.ScopePrefix != "" {
+					name = c.ScopePrefix + "_" + name
+				}
+				c.bindings[name] = true
+				mangled := mangleIdentifier(name)
 				return fmt.Sprintf("(org_var_%s = %s, org_pair_make(arena, org_string_from_c(arena, \"%s\"), org_var_%s))",
 					mangled, right, ident.Value, mangled), nil
 			}
@@ -336,7 +379,23 @@ func (c *CEmitter) emitExpression(expr ast.Expression) (string, error) {
 		if primitives[e.Value] {
 			return fmt.Sprintf("org_string_from_c(arena, \"%s\")", e.Value), nil
 		}
-		return fmt.Sprintf("org_var_%s", mangleIdentifier(e.Value)), nil
+		// Apply scope prefix if present (except for 'main' in the root scope? NO, main is special)
+		// Actually, if we mangle 'main', the entry point check needs to know the mangled name.
+		// For the ROOT program, ScopePrefix is empty. So 'org_var_main'.
+		// For modules, ScopePrefix is set. So 'org_var_mod1_main'.
+		// This handles the collision perfectly!
+
+		name := e.Value
+
+		// Global exceptions that should NOT be scoped/mangled with module prefix
+		// These are defined in stdlib or runtime and are global.
+		if name == "stdout" || name == "stdin" || name == "stderr" || name == "Error" || name == "print" {
+			// Do not prefix.
+		} else if c.ScopePrefix != "" {
+			name = c.ScopePrefix + "_" + name
+		}
+
+		return fmt.Sprintf("org_var_%s", mangleIdentifier(name)), nil
 
 	case *ast.BooleanLiteral:
 		if e.Value {
@@ -447,22 +506,19 @@ func (c *CEmitter) compileModule(path string) (string, error) {
 	}
 
 	// Compile to Function
+	// Use funcCounter as unique module ID for scoping
+	scopeID := fmt.Sprintf("mod%d", c.funcCounter)
+
 	fnName := fmt.Sprintf("org_module_%d", c.funcCounter)
 	c.funcCounter++
 	c.ModuleRegistry[path] = fnName
 
-	// Track bindings discovered during this module's emission
-	// Note: CEmitter.bindings is GLOBAL to all modules compiled by this emitter.
-	// We want to declare only the ones used in this module at the top of the function.
-	// But since C doesn't mind extra NULL globals/locals if named uniquely (they are prefixed by org_var_),
-	// we could just declare the new ones.
-	// However, shadowing might be an issue if we use 'static' globals.
-	// For modules, we use LOCAL variables.
+	// SCOPE FIX:
+	// We use the global 'c.bindings' map to track ALL variables, so they are declared at the top of the file.
+	// To prevent collisions, we use 'c.ScopePrefix' to mangle names within this module.
 
-	existingBindings := make(map[string]bool)
-	for k := range c.bindings {
-		existingBindings[k] = true
-	}
+	parentPrefix := c.ScopePrefix
+	c.ScopePrefix = scopeID
 
 	var bodyBuilder strings.Builder
 	var resultVars []string
@@ -470,6 +526,7 @@ func (c *CEmitter) compileModule(path string) (string, error) {
 	for i, stmt := range program.Statements {
 		stmtCode, err := c.emitStatement(stmt)
 		if err != nil {
+			c.ScopePrefix = parentPrefix // Restore on error
 			return "", err
 		}
 
@@ -478,14 +535,9 @@ func (c *CEmitter) compileModule(path string) (string, error) {
 		resultVars = append(resultVars, resVar)
 	}
 
-	var declsBuilder strings.Builder
-	for b := range c.bindings {
-		if !existingBindings[b] {
-			declsBuilder.WriteString(fmt.Sprintf("    OrgValue *org_var_%s = NULL;\n", mangleIdentifier(b)))
-		}
-	}
+	// We do NOT declare bindings locally anymore. They are global.
 
-	finalBody := declsBuilder.String() + bodyBuilder.String()
+	finalBody := bodyBuilder.String()
 
 	if len(resultVars) == 0 {
 		finalBody += "    return org_list_make(arena, 0);\n"
@@ -498,6 +550,9 @@ func (c *CEmitter) compileModule(path string) (string, error) {
 	fnDef := fmt.Sprintf("static OrgValue *%s(%s) {\n%s}\n", fnName, fnParams, finalBody)
 
 	c.auxFunctions = append(c.auxFunctions, fnDef)
+
+	// Restore parent scope
+	c.ScopePrefix = parentPrefix
 
 	return fmt.Sprintf("%s(arena, NULL, NULL)", fnName), nil
 }

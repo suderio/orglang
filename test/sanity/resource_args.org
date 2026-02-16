@@ -1,6 +1,8 @@
 "Start" -> @stdout;
-@args -> {
-  args : right;
-  args -> @stdout;
-} -> @stdout;
+main: {
+  @args -> {
+    args : right;
+    args -> @stdout;
+  } -> @stdout;
+};
 "End" -> @stdout;
