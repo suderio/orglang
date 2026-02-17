@@ -158,6 +158,8 @@ For **left-associative**: RBP == LBP. For **right-associative**: RBP < LBP.
 | `RATIONAL`   | `RationalLiteral`                    |                                                |
 | `STRING`     | `StringLiteral`                      |                                                |
 | `DOCSTRING`  | `StringLiteral`                      | Indent-stripped                                |
+| `RAWSTRING`  | `StringLiteral`                      | `'...'` — no escape processing                |
+| `RAWDOC`     | `StringLiteral`                      | `'''...'''` — raw, indent-stripped             |
 | `BOOLEAN`    | `BooleanLiteral`                     |                                                |
 | `IDENTIFIER` | `PrefixExpr`, `Name`, or `ErrorExpr` | Based on BP table lookup                       |
 | `this`       | `PrefixExpr`, `InfixExpr`, or `Name` | Mirrors enclosing operator arity               |

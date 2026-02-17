@@ -21,6 +21,8 @@ Only a small set of characters are **structural** — they break identifiers and
 | `;`                         | Statement terminator  |
 | `#`                         | Comment introducer    |
 | `"` (double quote)          | String delimiter      |
+| `'` (single quote)          | Raw string delimiter  |
+| `\` (backslash)             | Escape character      |
 
 Any multi-character operator that contains a structural character is **language-defined** and must be handled by the lexer (e.g., `@:`, `?:`). Any operator composed entirely of non-structural characters (e.g., `->`, `|>`, `++`) is just an identifier.
 
@@ -37,16 +39,18 @@ The `/` character is a valid identifier character, but it also forms **rational 
 | `INTEGER`    | Optional sign glued to `[0-9]+`               | `42`, `-7`, `+3`        |
 | `DECIMAL`    | Optional sign glued to `[0-9]+.[0-9]+`        | `3.14`, `-0.001`        |
 | `RATIONAL`   | `INTEGER/INTEGER` (no spaces)                 | `1/2`, `-3/4`           |
-| `STRING`     | `"..."`                                       | `"hello"`               |
+| `STRING`     | `"..."`                                       | `"hello"`, `"a\nb"`   |
 | `DOCSTRING`  | `"""..."""` (multiline, strips common indent) | `"""\n  a\n  b\n"""`    |
+| `RAWSTRING`  | `'...'`                                       | `'no\escapes'`         |
+| `RAWDOC`     | `'''...'''` (multiline raw, strips indent)    | `'''\n  raw\n'''`      |
 | `BOOLEAN`    | `true` or `false`                             | `true`, `false`         |
 
 ### Identifiers & Keywords
 
 | Token Type   | Description                                                             |
 | :----------- | :---------------------------------------------------------------------- |
-| `IDENTIFIER` | Starts with `[a-zA-Z_!$%&*+\-=^~?/<>\|]`, continues with those + digits |
-| `KEYWORD`    | An identifier matching a reserved word                                  |
+| `IDENTIFIER` | Starts with Unicode letter, `_`, or `!$%&*+-=^~?/<>\|`; continues with those + digits |
+| `KEYWORD`    | An identifier matching a reserved word                                                 |
 
 Reserved keywords: `true`, `false`, `this`, `left`, `right`.
 
@@ -144,19 +148,44 @@ After producing an `INTEGER`, if the **very next character** (no whitespace) is 
 
 When an `INTEGER` is immediately followed by `{` (no whitespace), the lexer emits the `INTEGER` and `LBRACE` as adjacent tokens. The parser uses position information to detect this. Similarly for `}` immediately followed by a digit.
 
-### 7. String Escaping
+### 7. String Escape Sequences
 
-In `"..."` strings: `\"`, `\\`, `\n`, `\t`. Other escapes TBD.
+Inside `"..."` and `"""..."""` strings, the `\` character introduces an escape:
 
-In `"""..."""` strings: raw content, no escapes. Strip common leading whitespace and surrounding blank lines.
+| Escape       | Meaning                        |
+| :----------- | :----------------------------- |
+| `\n`         | Newline (LF, U+000A)          |
+| `\t`         | Tab (U+0009)                  |
+| `\r`         | Carriage return (U+000D)      |
+| `\\`         | Literal backslash             |
+| `\"`         | Literal double quote          |
+| `\0`         | Null (U+0000)                 |
+| `\uXXXX`     | Unicode BMP (4 hex digits)    |
+| `\u{XXXXXX}` | Unicode codepoint (1-6 hex)   |
 
-### 8. Structural Characters Break Identifiers
+Any other `\X` sequence is an `ILLEGAL` token.
 
-When scanning an identifier, any structural character (`@`, `:`, `.`, `,`, `;`, `(`, `)`, `[`, `]`, `{`, `}`, `"`, `#`) immediately terminates the identifier.
+### 8. Raw Strings (`'...'` and `'''...'''`)
+
+Raw strings have **no escape processing**. Every character is literal.
+
+- `'hello\nworld'` → the literal text `hello\nworld` (12 characters, no newline).
+- `'''...'''` follows the same indentation stripping as `"""..."""` docstrings.
+- A raw string cannot contain its own delimiter (no way to embed `'` in `'...'`).
+
+### 9. Structural Characters Break Identifiers
+
+When scanning an identifier, any structural character (`@`, `:`, `.`, `,`, `;`, `(`, `)`, `[`, `]`, `{`, `}`, `"`, `'`, `\`, `#`) immediately terminates the identifier.
 
 Example: `x:42` → `IDENTIFIER(x)` `COLON` `INTEGER(42)`.
 
-### 9. The `@:` and `?:` Compound Rules
+### 10. Unicode Identifiers
+
+Identifiers may start with any **Unicode letter** (`\p{Letter}`) or `_`, and may continue with Unicode letters, digits, `_`, and the operator symbol set (`!$%&*+-=^~?/<>|`).
+
+The lexer uses Unicode-aware character classification. Non-ASCII letters (e.g., `é`, `π`, `漢`) are valid.
+
+### 11. The `@:` and `?:` Compound Rules
 
 - After seeing `@`, peek: if `:` follows → emit `AT_COLON`. Else → emit `AT`.
 - When scanning an identifier, if it consists of exactly `?` and the next char is `:` → emit `ELVIS`. (If the identifier is longer, e.g., `isValid?`, then `:` just terminates the identifier normally and emits `COLON` separately.)
@@ -192,6 +221,9 @@ pkg/
 5. **Structural breaking**: `x:42`, `f(x)`, `list.0`, `@stdout`.
 6. **Compound structural**: `@:` → `AT_COLON`, `?:` → `ELVIS`, `:+` → extended assignment.
 7. **Comments**: Single-line, block, nested content.
-8. **Strings**: Escapes, multiline, empty strings, unterminated.
-9. **Edge cases**: Empty input, only comments, binding power adjacency.
-10. **Integration**: Lex all `examples/*.org` files, verify no `ILLEGAL` tokens.
+8. **String escapes**: `\n`, `\t`, `\"`, `\\`, `\0`, `\uXXXX`, `\u{...}`, unknown `\X` → error.
+9. **Raw strings**: `'hello\nworld'` → literal `hello\nworld`. `'''...'''` multiline.
+10. **Unicode identifiers**: `café`, `π`, `Σ`, `名前` lex as `IDENTIFIER`.
+11. **Docstring indent stripping**: Both `"""..."""` and `'''...'''`.
+12. **Edge cases**: Empty input, only comments, binding power adjacency.
+13. **Integration**: Lex all `examples/*.org` files, verify no `ILLEGAL` tokens.
