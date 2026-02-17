@@ -24,7 +24,7 @@ The parser maintains a **binding power table** that is updated during parsing. W
    - Neither used → **nullary** (value/thunk).
 3. Registers `name` in the BP table with either the explicit BP from `N{...}N` syntax or the default BP 100.
 
-This means the parser is **order-dependent**: definitions must appear before use. If an identifier is encountered that is not yet bound, it produces an **Error** node (see [Error Handling](#error-handling)).
+This means the parser is **order-dependent**: definitions must appear before use. If an identifier is encountered that is not yet bound, it produces an **Error** node (see [Error Handling](#error-handling-for-undefined-identifiers)).
 
 ### Identifier Resolution in NUD Position
 
@@ -122,7 +122,7 @@ For **left-associative**: RBP == LBP. For **right-associative**: RBP < LBP.
 | 400 | `o`                                           | Composition           | Left      | LED*    |
 | 400 | `\|>`                                         | Partial application   | Left      | LED*    |
 | 300 | `*`, `/`, `%`, `&`                            | Product/Bitwise AND   | Left      | LED     |
-| 200 | `+`, `-`, `\|`, `^`, `<<`, `>>`              | Sum/Bitwise OR/XOR    | Left      | LED     |
+| 200 | `+`, `-`, `\|`, `^`, `<<`, `>>`               | Sum/Bitwise OR/XOR    | Left      | LED     |
 | 150 | `=`, `<>`, `~=`, `<`, `>`, `<=`, `>=`         | Comparisons           | Left      | LED     |
 | 140 | `&&`                                          | Logical AND           | Left      | LED     |
 | 130 | `\|\|`                                        | Logical OR            | Left      | LED     |
@@ -151,22 +151,22 @@ For **left-associative**: RBP == LBP. For **right-associative**: RBP < LBP.
 
 ## NUD Handlers (Prefix Position)
 
-| Token Type   | AST Node                   | Notes                                          |
-| :----------- | :------------------------- | :--------------------------------------------- |
-| `INTEGER`    | `IntegerLiteral`           | Or `FunctionLiteral` if `{` follows adjacently |
-| `DECIMAL`    | `DecimalLiteral`           |                                                |
-| `RATIONAL`   | `RationalLiteral`          |                                                |
-| `STRING`     | `StringLiteral`            |                                                |
-| `DOCSTRING`  | `StringLiteral`            | Indent-stripped                                |
-| `BOOLEAN`    | `BooleanLiteral`           |                                                |
-| `IDENTIFIER` | `PrefixExpr`, `Name`, or `ErrorExpr` | Based on BP table lookup            |
-| `this`       | `PrefixExpr`, `InfixExpr`, or `Name` | Mirrors enclosing operator arity   |
-| `left`       | `Name`                     | Function parameter                             |
-| `right`      | `Name`                     | Function parameter                             |
-| `AT` (`@`)   | `ResourceInst`             | Consumes next operand                          |
-| `LPAREN`     | `GroupExpr`                | Parse inner expression, consume `)`            |
-| `LBRACKET`   | `TableLiteral`             | Table-mode parsing until `]`                   |
-| `LBRACE`     | `FunctionLiteral`          | Parse body until `}`                           |
+| Token Type   | AST Node                             | Notes                                          |
+| :----------- | :----------------------------------- | :--------------------------------------------- |
+| `INTEGER`    | `IntegerLiteral`                     | Or `FunctionLiteral` if `{` follows adjacently |
+| `DECIMAL`    | `DecimalLiteral`                     |                                                |
+| `RATIONAL`   | `RationalLiteral`                    |                                                |
+| `STRING`     | `StringLiteral`                      |                                                |
+| `DOCSTRING`  | `StringLiteral`                      | Indent-stripped                                |
+| `BOOLEAN`    | `BooleanLiteral`                     |                                                |
+| `IDENTIFIER` | `PrefixExpr`, `Name`, or `ErrorExpr` | Based on BP table lookup                       |
+| `this`       | `PrefixExpr`, `InfixExpr`, or `Name` | Mirrors enclosing operator arity               |
+| `left`       | `Name`                               | Function parameter                             |
+| `right`      | `Name`                               | Function parameter                             |
+| `AT` (`@`)   | `ResourceInst`                       | Consumes next operand                          |
+| `LPAREN`     | `GroupExpr`                          | Parse inner expression, consume `)`            |
+| `LBRACKET`   | `TableLiteral`                       | Table-mode parsing until `]`                   |
+| `LBRACE`     | `FunctionLiteral`                    | Parse body until `}`                           |
 
 ### Known Prefix-Only Operators (Hardcoded)
 
@@ -386,7 +386,7 @@ type Program         struct { Statements []Node }
 | 15 | Negation vs `**`            | Keep BP 900; doc update → `TODO.md`                 |
 | 16 | `left`/`right`              | Name nodes (function params), never prefix          |
 | 17 | `\|>` right side            | Consumed as single Name token                       |
-| 18 | Undefined identifiers       | Produce `ErrorExpr` if not in binding/selection pos  |
+| 18 | Undefined identifiers       | Produce `ErrorExpr` if not in binding/selection pos |
 
 ## Remaining Implementation Details
 
