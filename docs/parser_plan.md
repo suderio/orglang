@@ -75,18 +75,49 @@ Then the parser produces an `ErrorExpr` node with a descriptive message (e.g., "
 
 This is the first error type in OrgLang and aligns with the language's philosophy of errors as values.
 
-### The `|>` and `o` Operators — Name-Reference Right Operand
+### The `|>` and `o` Operators — Atom-Mode Right Operand
 
-The `|>` (partial application) and `o` (composition) operators are special: their **right operand is always an operator name** (a reference to a previously defined operator), not an expression to be evaluated.
+The `|>` (partial application) and `o` (composition) operators parse their **right operand as a single atom** using `parseAtom()`, not `parseExpression()`. This avoids triggering unary-prefix NUD handlers (like `-` consuming a right operand) while still allowing operators-as-first-class-values.
+
+#### Why `parseAtom()` instead of `parseExpression()`
+
+If `+` in `10 |> +` were parsed via `parseExpression()`, the NUD of `+` (unary plus at BP 900) would try to consume a right operand. Since `;` follows, this would be a parse error. But `+` as a value (function reference) is legitimate.
+
+`parseAtom()` reads exactly one atomic unit without invoking NUD logic:
+
+| RHS Shape | What `parseAtom()` reads | Example |
+| :--- | :--- | :--- |
+| Bare identifier | `Name(token)` — static function reference | `5 \|> +`, `f o inc` |
+| Block `{...}` | `FunctionLiteral` — inline function | `5 \|> { left * 2 }` |
+| Group `(...)` | `GroupExpr` — full expression, evaluated at runtime | `5 \|> (ops.2)`, `f o (chooseOp(x))` |
+
+#### Examples
 
 ```rust
-add_ten : 10 |> +;              # Right side: Name(+)
-inc_and_double : double o inc;   # Right side: Name(inc)
+# Bare identifier — static reference, common case
+add_ten : 10 |> +;
+inc_and_double : double o inc;
+
+# Block — inline function
+stringify : 10 |> { "$left" };
+
+# Group — computed function reference (runtime-evaluated)
+ops : [+, -, *, /];
+mul_ten : 10 |> (ops.2);                  # picks `*` from the table
+chained : {right * 2} o (5 |> myFunc);    # compose with partial app
 ```
 
-**Why special handling is needed**: If `+` in `10 |> +` were parsed as a normal expression, `+` (a hardcoded prefix at BP 900) would try to consume a right operand. Since `;` follows, this would be a parse error.
+#### Parentheses Required for Complex RHS
 
-**Parser rule**: The LED handlers for `|>` and `o` consume the next token as a **single Name** (advancing one token and wrapping it as `Name`), rather than calling `parseExpression`.
+Since `parseAtom()` reads only one atom, complex expressions on the right of `|>` or `o` **must** be parenthesized:
+
+```rust
+# Without parens — WRONG
+{right * 2} o 5 |> myFunc    # Parses as: ({right * 2} o 5) |> myFunc
+
+# With parens — CORRECT
+{right * 2} o (5 |> myFunc)  # Parses as: {right * 2} o (5 |> myFunc)
+```
 
 ### Table Parsing: The Space-Separator Rule
 
@@ -132,7 +163,7 @@ For **left-associative**: RBP == LBP. For **right-associative**: RBP < LBP.
 | 50  | `->`, `-<`, `-<>`                             | Flow/Dispatch/Join    | Left      | LED     |
 | 0   | `;`                                           | Statement terminator  | N/A       | N/A     |
 
-`*` `o` and `|>` consume their right operand as a single Name token.
+`*` `o` and `|>` consume their right operand via `parseAtom()` (bare identifier, block, or group).
 
 ### Right-Associative RBP
 
@@ -269,16 +300,34 @@ def led_colon(left):
 
 ### The `|>` and `o` LED Handlers
 
-These consume a single Name token as the right operand:
+These consume their right operand via `parseAtom()`, which reads a single atomic unit:
 
 ```python
+def parseAtom():
+    token = peek()
+    if token.type == LPAREN:
+        advance()  # consume '('
+        inner = parseExpression(0)  # full expression inside parens
+        expect(RPAREN)
+        return GroupExpr(inner)
+    elif token.type == LBRACE:
+        return parseFunction(None)  # inline block
+    elif token.type == IDENTIFIER:
+        advance()
+        return Name(token.value)  # bare identifier as function ref
+    elif token.type in (INTEGER, DECIMAL, RATIONAL, STRING, BOOLEAN):
+        advance()
+        return literal_node(token)  # literal value
+    else:
+        return ErrorExpr(f"expected atom after |> or o, got {token.type}")
+
 def led_pipe_inject(left):
-    name_token = advance()  # consume next token as-is
-    return InfixExpr(left, "|>", Name(name_token.value))
+    right = parseAtom()
+    return InfixExpr(left, "|>", right)
 
 def led_compose(left):
-    name_token = advance()  # consume next token as-is
-    return InfixExpr(left, "o", Name(name_token.value))
+    right = parseAtom()
+    return InfixExpr(left, "o", right)
 ```
 
 ## Parsing Algorithm
@@ -387,7 +436,7 @@ type Program         struct { Statements []Node }
 | 14 | `this` arity                | Mirrors enclosing operator (prefix/infix/nullary)   |
 | 15 | Negation vs `**`            | Keep BP 900; doc update → `TODO.md`                 |
 | 16 | `left`/`right`              | Name nodes (function params), never prefix          |
-| 17 | `\|>` right side            | Consumed as single Name token                       |
+| 17 | `\|>` and `o` right side    | `parseAtom()`: bare identifier, block, or group     |
 | 18 | Undefined identifiers       | Produce `ErrorExpr` if not in binding/selection pos |
 
 ## Remaining Implementation Details
@@ -426,17 +475,21 @@ pkg/
 2. **Right-associativity**: `a : b : c` → `a : (b : c)`.
 3. **Dynamic registration**: After `square : { right ** 2 }`, `square 4` → `PrefixExpr`.
 4. **Binary op from binding**: After `add : { left + right }`, `4 add 5` → `InfixExpr`.
-5. **Partial application**: `10 |> +` → `InfixExpr(10, |>, Name(+))`.
-6. **Composition**: `double o inc` → `InfixExpr(Name(double), o, Name(inc))`.
-7. **Keywords**: `left + right` → `InfixExpr(Name(left), +, Name(right))`.
-8. **`this` prefix**: `this(right - 1)` → `PrefixExpr`.
-9. **Table atoms**: `[1 2 3]` → three atoms, `[a:1]` → one binding.
-10. **Table space rule**: `[a : 1]` → three atoms vs `[a:1]` → one binding.
-11. **Function literals**: `{ left + right }`, `600{ left ** right }601`.
-12. **Prefix `@`**: `@stdout` → `ResourceInst`.
-13. **Infix `@`**: `"path" @ org` → `InfixExpr`.
-14. **Resource def**: `Logger @: [next: {...}]`.
-15. **Comma building**: `1, 2, 3` → left-assoc `CommaExpr`.
-16. **Flow**: `source -> transform -> sink`.
-17. **Error on undefined**: `foo 5` before `foo` is defined → `ErrorExpr`.
-18. **All example files**.
+5. **Partial application (bare)**: `10 |> +` → `InfixExpr(10, |>, Name(+))`.
+6. **Partial application (block)**: `5 |> { left * 2 }` → `InfixExpr(5, |>, FunctionLiteral)`.
+7. **Partial application (group)**: `5 |> (ops.2)` → `InfixExpr(5, |>, GroupExpr(DotExpr(ops, 2)))`.
+8. **Composition**: `double o inc` → `InfixExpr(Name(double), o, Name(inc))`.
+9. **Keywords**: `left + right` → `InfixExpr(Name(left), +, Name(right))`.
+10. **`this` prefix**: `this(right - 1)` → `PrefixExpr`.
+11. **Table atoms**: `[1 2 3]` → three atoms, `[a:1]` → one binding.
+12. **Table space rule**: `[a : 1]` → three atoms vs `[a:1]` → one binding.
+13. **Function literals**: `{ left + right }`, `600{ left ** right }601`.
+14. **Prefix `@`**: `@stdout` → `ResourceInst`.
+15. **Infix `@`**: `"path" @ org` → `InfixExpr`.
+16. **Resource def**: `Logger @: [next: {...}]`.
+17. **Comma building**: `1, 2, 3` → left-assoc `CommaExpr`.
+18. **Flow**: `source -> transform -> sink`.
+19. **Error on undefined**: `foo 5` before `foo` is defined → `ErrorExpr`.
+20. **Pipe/compose with computed RHS**: `5 |> (table.0)` → group expression.
+21. **Pipe without parens for complex RHS**: `{f} o 5 |> g` → `({f} o 5) |> g` (not `{f} o (5 |> g)`).
+22. **All example files**.
