@@ -49,8 +49,8 @@ The `/` character is a valid identifier character, but it also forms **rational 
 
 | Token Type   | Description                                                             |
 | :----------- | :---------------------------------------------------------------------- |
-| `IDENTIFIER` | Starts with Unicode letter, `_`, or `!$%&*+-=^~?/<>\|`; continues with those + digits |
-| `KEYWORD`    | An identifier matching a reserved word                                                 |
+| `IDENTIFIER` | Starts with `\p{Letter}`, `\p{Symbol}`, `\p{Number}`, or `_`; continues with same + ASCII digits. `\p{Punctuation}` excluded (except `_`). |
+| `KEYWORD`    | An identifier matching a reserved word |
 
 Reserved keywords: `true`, `false`, `this`, `left`, `right`.
 
@@ -175,15 +175,20 @@ Raw strings have **no escape processing**. Every character is literal.
 
 ### 9. Structural Characters Break Identifiers
 
-When scanning an identifier, any structural character (`@`, `:`, `.`, `,`, `;`, `(`, `)`, `[`, `]`, `{`, `}`, `"`, `'`, `\`, `#`) immediately terminates the identifier.
+When scanning an identifier, any structural character (`@`, `:`, `.`, `,`, `;`, `(`, `)`, `[`, `]`, `{`, `}`, `"`, `'`, `\`, `#`) or any `\p{Punctuation}` character immediately terminates the identifier.
 
 Example: `x:42` → `IDENTIFIER(x)` `COLON` `INTEGER(42)`.
 
 ### 10. Unicode Identifiers
 
-Identifiers may start with any **Unicode letter** (`\p{Letter}`) or `_`, and may continue with Unicode letters, digits, `_`, and the operator symbol set (`!$%&*+-=^~?/<>|`).
+A character is valid in an identifier if it matches any of:
 
-The lexer uses Unicode-aware character classification. Non-ASCII letters (e.g., `é`, `π`, `漢`) are valid.
+- `\p{Letter}` (L): `é`, `π`, `Σ`, `漢`
+- `\p{Symbol}` (S): `∑`, `√`, `∞`, `€`, `→`
+- `\p{Number}` (N): `Ⅱ`, `½`, `²` (non-ASCII digits in continue position; ASCII `0-9` handled separately)
+- `_` (U+005F, whitelisted from `Pc`)
+
+`\p{Punctuation}` is **excluded** — it contains OrgLang's structural characters and look-alike delimiters. See `docs/utf8_support.md` for rationale.
 
 ### 11. The `@:` and `?:` Compound Rules
 

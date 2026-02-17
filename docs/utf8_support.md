@@ -4,7 +4,7 @@
 
 1. **Backslash escapes adopted**: `\` is the escape character in string literals.
 2. **Single quotes for raw strings**: `'...'` strings have no escape processing.
-3. **Unicode identifiers allowed**: Any Unicode letter can be used in identifiers, dependent on editor support — no special syntax to represent them.
+3. **Unicode identifiers allowed**: Characters with Unicode properties `Letter`, `Symbol`, and `Number` are allowed in identifiers, dependent on editor support — no special syntax to represent them. `Punctuation` is explicitly excluded.
 
 ## String Escape Sequences
 
@@ -49,21 +49,48 @@ raw_block : '''
 
 ## Identifiers and Unicode
 
-Identifiers may contain **Unicode letters** (any character with the Unicode `Letter` property). The rules:
+Identifiers may contain characters from three Unicode general categories, plus `_` and the ASCII operator symbol set:
 
-- **Start**: Any Unicode letter or `_`.
-- **Continue**: Unicode letters, digits (`0-9`), `_`, and the operator symbol set (`!$%&*-+=^~?/<>|`).
+### Allowed Unicode Categories
 
-Examples of valid identifiers:
+| Category | Subcategories | Examples | Rationale |
+| :--- | :--- | :--- | :--- |
+| `\p{Letter}` (L) | Lu, Ll, Lt, Lm, Lo | `é`, `π`, `Σ`, `漢`, `名` | Natural extension of ASCII letters |
+| `\p{Symbol}` (S) | Sm, Sc, Sk, So | `∑`, `√`, `∞`, `≤`, `€`, `£`, `→` | Natural extension of ASCII operator symbols (`!$%&*-+=^~?/<>\|`) |
+| `\p{Number}` (N) | Nd, Nl, No | `٠`–`٩`, `Ⅱ`, `½`, `²` | Natural extension of ASCII digits |
+
+### Excluded: `\p{Punctuation}` (P)
+
+Punctuation is **explicitly excluded** because it contains OrgLang's structural characters:
+
+- `Ps`/`Pe` (Open/Close): `(`, `)`, `[`, `]`, `{`, `}`, `«`, `⟨` — confusable with delimiters
+- `Pi`/`Pf` (Quotes): `"`, `"`, `'`, `'` — confusable with string delimiters `"` and `'`
+- `Po` (Other): `.`, `,`, `:`, `;`, `@`, `#` — includes ALL current structural characters
+- `Pd` (Dash): `–` (en dash), `—` (em dash) — visually similar to `-` but different codepoints, source of invisible bugs
+
+The sole exception is `_` (U+005F), which is `Pc` (Connector Punctuation) and is explicitly whitelisted.
+
+### Identifier Rules
+
+- **Start**: `\p{Letter}` | `\p{Symbol}` | `\p{Number}` | `_`
+- **Continue**: All of the above, plus ASCII digits `0-9` (redundant with `\p{Number}` but explicit)
+- **Excluded from identifiers**: `\p{Punctuation}` (except `_`), structural characters, whitespace
+
+> [!NOTE]
+> Since OrgLang integer literals only use ASCII `0-9`, non-ASCII digits and number-like characters (e.g., `Ⅱ`, `½`) cause no ambiguity at identifier start position.
+
+### Examples
 
 ```rust
-café : "coffee";
-π : 3.14159;
-Σ : { left + right };
-名前 : "name";
+café : "coffee";          # \p{Letter}
+π : 3.14159;              # \p{Letter} (Greek)
+∑ : { left + right };     # \p{Symbol} (Sm, Math)
+€price : 42;              # \p{Symbol} (Sc, Currency)
+名前 : "name";             # \p{Letter} (CJK)
+x² : x * x;              # \p{Number} (No, superscript)
 ```
 
-This is purely editor-dependent — OrgLang does not provide a special syntax for entering Unicode characters in identifiers. If your editor can type `π`, you can use it.
+This is purely editor-dependent — OrgLang does not provide a special syntax for entering Unicode characters in identifiers. If your editor can type `∑`, you can use it.
 
 ### Characters Forbidden in Identifiers
 
@@ -78,6 +105,7 @@ The following characters are **structural** and cannot appear inside identifiers
 | `\`                   | Escape character         |
 | `'`, `"`              | String delimiters        |
 | `#`                   | Comment start            |
+| `\p{Punctuation}`     | Entire category excluded |
 | Whitespace            | Token separator          |
 
 ## Lexer Impact
@@ -86,7 +114,7 @@ The lexer needs:
 
 1. **String escape processing**: When scanning `"..."`, detect `\` and process the escape table above. Emit an error for unknown `\X` sequences.
 2. **Raw string scanning**: When scanning `'...'`, consume characters literally until the closing `'` (or `'''`).
-3. **Unicode identifier support**: The character classification for "can this continue an identifier?" must use Unicode properties (`\p{Letter}`) instead of ASCII-only letter checks.
+3. **Unicode identifier support**: Character classification must use Unicode properties — a character is an identifier character if it matches `\p{Letter}` | `\p{Symbol}` | `\p{Number}` | `_`, and is NOT a structural character or `\p{Punctuation}`.
 
 ## Parser Impact
 
