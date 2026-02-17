@@ -26,8 +26,8 @@ build:
 # Build Reference PDF (requires pandoc and wkhtmltopdf/weasyprint)
 pdf:
     @echo "🎨 Renderizando PDF com WeasyPrint e CSS..."
-    pandoc README.md -o reference.pdf --css assets/style.css --pdf-engine=weasyprint --embed-resources --standalone --toc --metadata title="OrgLang Reference"
+    pandoc README.md -o docs/Reference.pdf --css assets/style.css --pdf-engine=weasyprint --embed-resources --standalone --toc --metadata title="OrgLang Reference"
     @echo "✨ PDF gerado"
 
 view: pdf
-    xdg-open "reference.pdf"
+    xdg-open "docs/Reference.pdf"
