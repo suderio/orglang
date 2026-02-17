@@ -196,8 +196,6 @@ The following identifiers are reserved as keywords and have special meaning in t
 
 - `false`: Boolean falsehood value.
 
-- `resource`: Used in resource definitions.
-
 - `this`: Refers to the current function or block (used for recursion).
 
 - `left`: Predefined name for the left operand in a binary operator.
@@ -1314,7 +1312,7 @@ The keyword `this` refers to the current operator itself, allowing for anonymous
 
 ```rust
 factorial : {
-    (right <- 1) ? [
+    (right <= 1) ? [
         true: 1
         false: (right * this(right - 1))
     ]

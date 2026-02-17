@@ -13,13 +13,6 @@ And a **Left Binding Power** (LBP) that determines how tightly it binds to the l
 
 ## Key Design Decisions
 
-### No Juxtaposition
-
-OrgLang does **not** have implicit juxtaposition for function application. There is no implicit infix "apply" triggered by two adjacent operands. All operand consumption happens through explicit operator binding:
-
-1. **Prefix operators** (NUD): `- x`, `! x`, `@ stdout`, `this (right - 1)`.
-2. **Infix operators** (LED): `a + b`, `a -> b`, `a : b`.
-
 ### Identifiers as Operators
 
 Most "operators" (`+`, `-`, `->`, `&&`, `??`, etc.) are lexed as `IDENTIFIER` tokens. The parser resolves their binding power by looking them up in a table:
@@ -28,19 +21,43 @@ Most "operators" (`+`, `-`, `->`, `&&`, `??`, etc.) are lexed as `IDENTIFIER` to
 2. **User-defined** from `N{...}N` syntax, registered during parsing.
 3. **Default**: Unknown identifiers → BP 100 (same as function call in C/Java).
 
-### All Identifiers are Potential Prefix Operators
+### The `left` and `right` Keywords
 
-Since user-defined functions (`square : { right * right }`) can be used as prefix operators (`square 4`), and the parser cannot know at parse time which identifiers are functions, the parser treats **every identifier in NUD position** as a potential prefix operator with default BP 100.
+`left` and `right` are **not** operators — they are implicit function parameters available inside operator bodies. They resolve to the operands passed to the enclosing function:
 
-This means `square 4` parses as `PrefixExpr(square, 4)`. If `square` turns out not to be callable at runtime, an error is raised then.
+- In a **binary** expression `a op b`: `left` = `a`, `right` = `b`.
+- In a **unary** expression `op x`: `right` = `x`, `left` = Error.
 
-Additionally, the keywords `this`, `left`, and `right` are prefix operators. `this(right - 1)` → `PrefixExpr(this, GroupExpr(right - 1))`.
+At the parser level, `left` and `right` are parsed as simple `Name` nodes. Their special semantics are handled at evaluation/codegen time.
+
+### The `this` Keyword
+
+`this` is a **prefix operator** keyword. It refers to the current function and can consume a right operand (for recursion):
+
+```rust
+this(right - 1)  # PrefixExpr(this, GroupExpr(right - 1))
+```
+
+### The `|>` (Partial Application) Operator
+
+`|>` has BP 400, left-associative. Its semantics:
+
+- **Left operand**: Any value to inject as `left`.
+- **Right operand**: Always a previously defined **operator name** (unary or binary).
+- **Result**: A nullary (if the right was unary) or unary (if the right was binary) operator.
+
+```rust
+add5 : 5 |> +;       # Fix left=5 into '+', result is unary '+ 5'
+add5 10;              # 15
+```
+
+Since `|>` has BP 400 and parses its right side at BP 400, the right operand `+` cannot consume anything further (there's nothing with high enough BP after it). It is naturally returned as a `Name(+)`.
 
 ### Table Parsing: The Space-Separator Rule
 
 Inside `[...]`, **space acts as the element separator**. The critical rule:
 
-> **Structural operators used without spaces bind their operands. Non-structural identifiers used as operators do not bind inside tables — they become standalone atoms.**
+> **Structural operators used without spaces bind their operands. Non-structural identifiers (including operators like `+`) become standalone atoms inside tables.**
 
 Examples:
 
@@ -49,26 +66,89 @@ Examples:
 [a: 3]          # One element: BindingExpr(a, 3) — ':' grabs next atom
 [a : 1]         # Three elements: Name(a), Name(:), Integer(1) — spaces break
 [1 + 2 3]       # Four atoms: 1, +, 2, 3 — '+' is a plain identifier
-[1 + 2 3]       # NOT [3 3] — no expression evaluation between atoms
 [matrix.1]      # One element: DotExpr(matrix, 1) — '.' is structural
 [a: (1 + 2)]    # One element: BindingExpr(a, GroupExpr(1+2))
 ```
 
 ### Source File as Implicit Table
 
-Every source file is an implicit table with `;` as the separator (not space). Newlines are **not** significant.
+Every source file is an implicit table with `;` as the separator. Newlines are **not** significant.
 
 ```rust
-# Source file:
-a : 1;
+a : 1;     # equivalent to the content inside [a:1 b:2]
 b : 2;
-
-# Is equivalent to:
-[
-a : 1
-b : 2
-]
 ```
+
+## Open Question: Function Call Mechanism
+
+The README shows function calls without parentheses:
+
+```rust
+square : { right * right };
+result : square 4;         # 16
+
+add : { left + right };
+result : 4 add 5;          # 9
+```
+
+This creates a tension in the Pratt parser:
+
+### The Problem
+
+If `square` is parsed as a **prefix operator** (consuming `4` to its right), then `left + right` inside function bodies would break — `left` would try to consume `+` as its prefix operand instead of `+` being an infix operator.
+
+Traced execution of `left + right` with "all identifiers are prefix at BP 100":
+
+```
+1. left NUD → prefix BP 100, calls parseExpression(100)
+2.   + NUD → prefix BP 100, calls parseExpression(100)
+3.     right NUD → prefix BP 100, nothing to consume → Name(right)
+4.   + consumed right → PrefixExpr(+, right)
+5. left consumed PrefixExpr(+, right) → PrefixExpr(left, PrefixExpr(+, right))
+```
+
+**Result**: `PrefixExpr(left, PrefixExpr(+, right))` — completely wrong!
+**Expected**: `InfixExpr(Name(left), +, Name(right))`
+
+### The Root Cause
+
+The infix LED handler for `+` (BP 200) never fires because `left`'s prefix NUD at BP 100 greedily consumes `+` before the Pratt loop can offer `+` as an infix operator.
+
+### Proposed Solutions
+
+**Solution A: Identifiers are always Names in NUD, never prefix.**
+All identifiers (including `square`, `factorial`) are just `Name` nodes in NUD position. Function calls require parentheses: `square(4)`, `factorial(5)`.
+
+This requires `LPAREN` to have a LED handler (like a function-call operator) at high BP:
+
+- `square(4)` → Name(square), `(` LED at BP 800 → CallExpr(square, 4).
+- `left + right` → Name(left), `+` LED at BP 200 → InfixExpr ✓
+- `this(right - 1)` → handled specially: `this` has hardcoded prefix NUD ✓
+
+> [!IMPORTANT]
+> This would require examples like `square 4` to be written as `square(4)`. The README examples would need updating.
+
+**Solution B: Identifiers are prefix ONLY when they have known prefix BP.**
+The parser tracks which identifiers have been defined as prefix operators (via `N{...}` syntax at parse time). Only those plus hardcoded keywords (`this`, `!`, `~`, `-`, `++`, `--`, `@`) consume right operands.
+
+- `square 4` → `square` has no prefix BP → Name, `4` is separate expression (broken!).
+- `! true` → `!` has hardcoded prefix BP → PrefixExpr ✓
+- `left + right` → Name, LED, Name ✓
+
+Same problem as A: `square 4` doesn't work.
+
+**Solution C: Differentiate prefix vs. infix at NUD time.**
+An identifier in NUD checks: is the **next** token a literal, `(`, `[`, or `{` (operands that cannot be infix operators)? If so, consume as prefix. If the next token is an identifier that could be infix, don't consume.
+
+- `square 4` → `square` sees `4` (literal, can't be infix) → prefix → PrefixExpr ✓
+- `left + right` → `left` sees `+` (identifier with known infix BP 200) → don't prefix → Name ✓
+- `5 |> +` → inside parseExpression(400), `+` sees `;` → don't prefix → Name ✓
+- `f g` → `f` sees `g` (identifier, unknown infix BP) → ??? Ambiguous.
+
+> [!WARNING]
+> This works for known operators but is ambiguous for unknown identifier-identifiers. `f g` could be prefix or two names.
+
+**Question for review**: Which solution should we adopt? Solution A (always require parens) is the cleanest. Solution C gives the best compatibility with existing examples but has edge cases.
 
 ## Binding Power Table
 
@@ -78,7 +158,8 @@ For **right-associative** operators: RBP < LBP.
 | BP  | Operators                                       | Description             | Assoc.    | Handler |
 | :-- | :---------------------------------------------- | :---------------------- | :-------- | :------ |
 | 900 | `@`                                             | Resource inst./infix    | Prefix/L  | NUD+LED |
-| 900 | `~`, `!`, `-`, `++`, `--`                       | Unary prefix            | Prefix    | NUD     |
+| 900 | `~`, `!`, `++`, `--`                            | Unary prefix            | Prefix    | NUD     |
+| 900 | `-` (prefix only)                               | Unary negation          | Prefix    | NUD     |
 | 800 | `.`                                             | Dot access              | Left      | LED     |
 | 750 | `?`, `??`, `?:`                                 | Selection/Error/Elvis   | Left      | LED     |
 | 500 | `**`                                            | Exponentiation          | **Right** | LED     |
@@ -120,19 +201,28 @@ For **right-associative** operators: RBP < LBP.
 | `STRING`     | `StringLiteral`   |                                                |
 | `DOCSTRING`  | `StringLiteral`   | Indent-stripped                                |
 | `BOOLEAN`    | `BooleanLiteral`  |                                                |
-| `IDENTIFIER` | `PrefixExpr`      | Default BP 100; consumes right operand         |
-| `KEYWORD`    | `PrefixExpr`      | `this`, `left`, `right` — prefix operators     |
+| `IDENTIFIER` | `Name` or `PrefixExpr` | Depends on chosen solution (A, B, or C)   |
+| `this`       | `PrefixExpr`      | Hardcoded prefix; consumes right operand       |
+| `left`       | `Name`            | Function parameter reference; never prefix     |
+| `right`      | `Name`            | Function parameter reference; never prefix     |
 | `AT` (`@`)   | `ResourceInst`    | Consumes next operand                          |
 | `LPAREN`     | `GroupExpr`       | Parse inner expression, consume `)`            |
 | `LBRACKET`   | `TableLiteral`    | Table-mode parsing until `]`                   |
 | `LBRACE`     | `FunctionLiteral` | Parse body until `}`                           |
 
-### Prefix Identifier Resolution
+### Known Prefix-Only Operators
 
-When `IDENTIFIER` appears in NUD:
+These identifiers **always** consume a right operand in NUD position:
 
-1. Is it a **known prefix operator** (`-`, `!`, `~`, `++`, `--`)? → use its prefix BP.
-2. Otherwise → use default prefix BP 100, consume right operand, produce `PrefixExpr`.
+| Identifier | Prefix BP | Notes                |
+| :--------- | :-------- | :------------------- |
+| `this`     | hardcoded | Keyword              |
+| `@`        | 900       | Structural token     |
+| `-`        | 900       | Only when prefix     |
+| `!`        | 900       | Logical NOT          |
+| `~`        | 900       | Bitwise NOT          |
+| `++`       | 900       | Increment (prefix)   |
+| `--`       | 900       | Decrement (prefix)   |
 
 ### Function Literal with Binding Powers
 
@@ -154,17 +244,18 @@ When `INTEGER` in NUD is immediately adjacent to `LBRACE`:
 | `COMMA` (`,`)          | `CommaExpr`  | Creates/extends tables              |
 | `ELVIS` (`?:`)         | `ElvisExpr`  | Falsy coalescing                    |
 | `AT` (`@`)             | `InfixExpr`  | Infix at BP 800                     |
+| `LPAREN` (`(`)         | `CallExpr`   | *Only if Solution A is chosen*      |
 
 ### Comma Semantics
 
-The `,` operator (BP 60, left-associative) creates or extends tables:
+The `,` operator (BP 60, left-assoc) creates or extends tables:
 
-- **Atom , Atom** → new Table with both: `1, 2` → `[1 2]`
-- **Table , Atom** → append to Table: `[1 2], 3` → `[1 2 3]`
-- **Atom , Table** → new Table with nesting: `1, [2 3]` → `[1 [2 3]]`
-- **Table , Table** → append as single element: `[1 2], [3 4]` → `[1 2 [3 4]]`
+- **Atom , Atom** → new Table: `1, 2` → `[1 2]`
+- **Table , Atom** → append: `[1 2], 3` → `[1 2 3]`
+- **Atom , Table** → nest: `1, [2 3]` → `[1 [2 3]]`
+- **Table , Table** → append nested: `[1 2], [3 4]` → `[1 2 [3 4]]`
 
-Left-associativity makes `1, 2, 3` → `((1, 2), 3)` → `[1 2 3]`.
+Left-associativity: `1, 2, 3` → `((1, 2), 3)` → `[1 2 3]`.
 
 ## Parsing Algorithm
 
@@ -202,14 +293,9 @@ def parseTable():
         elements.append(parseAtom())
     advance()  # consume ']'
     return TableLiteral(elements)
-
-def parseAtom():
-    # Parse a single "atom group" — tokens bound together without spaces.
-    # Structural operators (. : @ @:) bind across atoms.
-    # The exact logic depends on the lexer providing whitespace-awareness
-    # or the parser checking token adjacency via position info.
-    ...
 ```
+
+Inside `[...]`, each space-separated token group is an atom. Structural operators (`:`, `.`, `@`, `@:`) bind when used without spaces.
 
 ### Function (`{...}`)
 
@@ -244,6 +330,7 @@ type BooleanLiteral  struct { Value bool }
 type Name            struct { Value string }
 type PrefixExpr      struct { Op string; Right Node }
 type InfixExpr       struct { Left Node; Op string; Right Node }
+type CallExpr        struct { Func Node; Arg Node }    // Only if Solution A
 type DotExpr         struct { Left Node; Key Node }
 type BindingExpr     struct { Name Node; Value Node }
 type ResourceDef     struct { Name Node; Table Node }
@@ -260,40 +347,31 @@ type Program         struct { Statements []Node }
 
 ## Resolved Gaps
 
-| #  | Gap                                | Resolution                                                       |
-| :- | :--------------------------------- | :--------------------------------------------------------------- |
-| 1  | Infix `@` binding power           | BP 800, same operator as prefix with different arity             |
-| 2  | `?` vs user identifier             | Predefined identifier with special BP; not reserved              |
-| 3  | Juxtaposition                      | Not needed; all identifiers are potential prefix operators        |
-| 4  | Newline significance               | Not significant; `;` separates statements                        |
-| 5  | `@:` vs `@ :`                      | `@:` is always `AT_COLON` per lexer longest-match                |
-| 6  | Comma semantics                    | Creates/appends tables; left-assoc builds flat lists             |
-| 7  | Dot RHS                            | Can be arbitrary expression                                      |
-| 8  | `$` precedence                     | BP 100 (user-defined default)                                    |
-| 9  | `++`/`--` arity                    | Prefix-only                                                      |
-| 10 | Atoms in tables                    | Space separates; structural ops bind when no space               |
-| 11 | `->` listed as structural          | Doc bug → added to `TODO.md`                                     |
-| 12 | `?` with non-table RHS             | Doc fixed by user                                                |
-| 13 | `<-` in example 05                 | Typo; fixed to `<=`                                              |
-| 14 | `this(x)` call syntax              | `this` is a prefix keyword; `(x)` is its right operand          |
-| 15 | Negation vs exponentiation         | Keep `-` at BP 900; doc update → added to `TODO.md`             |
+| #  | Gap                            | Resolution                                                   |
+| :- | :----------------------------- | :----------------------------------------------------------- |
+| 1  | Infix `@` BP                  | BP 800, same operator as prefix                              |
+| 2  | `?` vs identifier              | Predefined with special BP; not reserved                     |
+| 3  | Juxtaposition                  | Not supported; see Open Question                             |
+| 4  | Newline significance           | Not significant; `;` separates                               |
+| 5  | `@:` vs `@ :`                  | `@:` always AT_COLON                                         |
+| 6  | Comma semantics                | Creates/appends; left-assoc                                  |
+| 7  | Dot RHS                        | Arbitrary expression                                         |
+| 8  | `$` precedence                 | BP 100                                                       |
+| 9  | `++`/`--`                      | Prefix-only                                                  |
+| 10 | Atoms in tables                | Space separates; structural ops bind when no space           |
+| 11 | `->` as structural             | Doc bug → `TODO.md`                                          |
+| 12 | `?` non-table RHS              | Doc fixed                                                    |
+| 13 | `<-` typo                      | Fixed to `<=`                                                |
+| 14 | `this(x)` call                 | `this` is prefix keyword                                     |
+| 15 | Negation vs `**`               | Keep BP 900; doc update → `TODO.md`                          |
+| 16 | `left`/`right`                 | Function params (Name nodes), not prefix operators           |
+| 17 | `\|>` right side               | Always an operator name; works via BP mechanics              |
 
-## Remaining Open Questions
+## Remaining Implementation Detail
 
-### Atom-Mode Parser Implementation
+### Atom-Mode Whitespace Awareness
 
-The table atom-mode parser needs **whitespace awareness**. The lexer must provide position information (line, column) so the parser can detect whether two tokens are adjacent (no space) or separated.
-
-**Key question**: Should the lexer emit a `WHITESPACE` token between elements inside `[...]`? Or should the parser infer separation from column gaps? The latter is simpler but requires careful position tracking.
-
-### Identifier as Prefix vs. Infix
-
-When an identifier appears after a left-hand expression, is it infix (LED) or does parsing stop?
-
-- If the identifier has known infix BP → LED applies: `4 add 5` → `InfixExpr`.
-- If unknown → default infix BP 100 → LED applies: `4 foo 5` → `InfixExpr`.
-
-This means **bare identifiers are always infix** in LED position. The parser never stops mid-expression because of an unknown identifier. This is consistent with `4 add 5` working and with the default BP 100.
+The table parser needs token position info to detect adjacency. The lexer must provide line/column on each token.
 
 ## Package Layout
 
@@ -315,19 +393,18 @@ pkg/
 
 1. **Precedence**: `1 + 2 * 3` → `1 + (2 * 3)`.
 2. **Right-associativity**: `a : b : c` → `a : (b : c)`.
-3. **Prefix operators**: `square 4` → `PrefixExpr(square, 4)`.
-4. **Binary operators**: `4 add 5` → `InfixExpr(4, add, 5)`.
-5. **Table literals (atom mode)**: `[1 2 3]` → three atoms.
-6. **Table bindings**: `[a:1 b:2]` → two bindings (no space around `:`).
-7. **Table with spaces around `:`**: `[a : 1]` → three atoms.
-8. **Function literals**: `{ left + right }`, `600{ left ** right }601`.
-9. **Prefix `@`**: `@stdout` → `ResourceInst(stdout)`.
-10. **Infix `@`**: `"path" @ org` → `InfixExpr`.
-11. **Resource def**: `Logger @: [next: {...}]` → `ResourceDef`.
-12. **Comma building**: `1, 2, 3` → left-assoc `CommaExpr`.
-13. **Flow**: `source -> transform -> sink` → left-assoc chain.
-14. **Elvis**: `x ?: default` → `ElvisExpr`.
-15. **Dot chaining**: `matrix.1.1` → nested `DotExpr`.
-16. **Dot with expression**: `table.(1 + 1)`.
-17. **Keywords as prefix**: `this (right - 1)` → `PrefixExpr(this, GroupExpr)`.
-18. **All example files**: Parse `examples/*.org` and verify AST.
+3. **Keywords**: `left + right` → `InfixExpr(Name(left), +, Name(right))`.
+4. **`this` prefix**: `this(right - 1)` → `PrefixExpr(this, GroupExpr)`.
+5. **Table literals**: `[1 2 3]` → three atoms.
+6. **Table bindings**: `[a:1 b:2]` → two bindings vs `[a : 1]` → three atoms.
+7. **Function literals**: `{ left + right }`, `600{ left ** right }601`.
+8. **Prefix `@`**: `@stdout` → `ResourceInst`.
+9. **Infix `@`**: `"path" @ org` → `InfixExpr`.
+10. **Resource def**: `Logger @: [next: {...}]`.
+11. **Partial application**: `5 |> +` → `InfixExpr(5, |>, Name(+))`.
+12. **Comma building**: `1, 2, 3` → left-assoc chain.
+13. **Flow**: `source -> transform -> sink`.
+14. **Elvis**: `x ?: default`.
+15. **Dot chaining**: `matrix.1.1`.
+16. **Dot expression**: `table.(1 + 1)`.
+17. **All example files**.
