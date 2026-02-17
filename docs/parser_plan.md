@@ -24,7 +24,7 @@ The parser maintains a **binding power table** that is updated during parsing. W
    - Neither used → **nullary** (value/thunk).
 3. Registers `name` in the BP table with either the explicit BP from `N{...}N` syntax or the default BP 100.
 
-This means the parser is **order-dependent**: definitions must appear before use. If an identifier is encountered that is not yet bound, it produces an **Error** node (see [Error Handling](#error-handling)).
+This means the parser is **order-dependent**: definitions must appear before use. If an identifier is encountered that is not yet bound, it produces an **Error** node (see [Error Handling](#error-handling-for-undefined-identifiers)).
 
 ### Identifier Resolution in NUD Position
 
@@ -47,11 +47,21 @@ This cleanly resolves the core tension:
 
 ### The `this` Keyword
 
-`this` is a **hardcoded prefix operator**. It refers to the current function and consumes a right operand:
+`this` refers to the **current operator** — whether it is unary, binary, or nullary. It is always parsed as a **Name** node. Its arity mirrors the enclosing function's arity (determined by `left`/`right` usage in the body).
+
+To call `this` recursively, use parenthesized call syntax:
 
 ```rust
-this(right - 1)  # PrefixExpr(this, GroupExpr(right - 1))
+this(right - 1)  # CallExpr(Name(this), GroupExpr(right - 1))
 ```
+
+In a binary operator, `this` can also appear in infix position:
+
+```rust
+left this right  # InfixExpr(Name(left), this, Name(right))
+```
+
+The call syntax works through `(` as a LED handler. See [Call Syntax](#call-syntax-lparen-as-led).
 
 ### Error Handling for Undefined Identifiers
 
@@ -96,6 +106,23 @@ Inside `[...]`, **space acts as the element separator**:
 ### Source File as Implicit Table
 
 Every source file is an implicit table with `;` as separator. Newlines are **not** significant.
+
+### Call Syntax: `LPAREN` as LED
+
+The `(` token has a **LED handler** at BP 800 (same as `.`). When the parser sees `expression (`, it produces a `CallExpr`:
+
+```rust
+this(right - 1)    # CallExpr(Name(this), GroupExpr(right - 1))
+square(4)          # CallExpr(Name(square), GroupExpr(4))
+f(x)(y)            # CallExpr(CallExpr(Name(f), GroupExpr(x)), GroupExpr(y))
+```
+
+This enables calling any expression — names, dot-access results, or other call results — without needing juxtaposition. The `(` LED handler:
+
+1. Parses the inner expression to produce a `GroupExpr`.
+2. Wraps: `CallExpr(left, GroupExpr(inner))`.
+
+> **Note**: `square 4` (without parens) still works because `square` is dynamically registered as a prefix operator. But `this(x)` requires parens because `this` is not registered as prefix — it's a Name whose arity depends on context.
 
 ## Binding Power Table
 
@@ -150,7 +177,7 @@ For **left-associative**: RBP == LBP. For **right-associative**: RBP < LBP.
 | `DOCSTRING`  | `StringLiteral`            | Indent-stripped                                |
 | `BOOLEAN`    | `BooleanLiteral`           |                                                |
 | `IDENTIFIER` | `PrefixExpr`, `Name`, or `ErrorExpr` | Based on BP table lookup            |
-| `this`       | `PrefixExpr`               | Hardcoded prefix keyword                       |
+| `this`       | `Name`                     | Current operator ref; arity from context       |
 | `left`       | `Name`                     | Function parameter                             |
 | `right`      | `Name`                     | Function parameter                             |
 | `AT` (`@`)   | `ResourceInst`             | Consumes next operand                          |
@@ -162,7 +189,6 @@ For **left-associative**: RBP == LBP. For **right-associative**: RBP < LBP.
 
 | Identifier | Prefix BP | Notes            |
 | :--------- | :-------- | :--------------- |
-| `this`     | hardcoded | Keyword          |
 | `@`        | 900       | Structural token |
 | `-`        | 900       | Unary negation   |
 | `!`        | 900       | Logical NOT      |
@@ -225,6 +251,7 @@ When `INTEGER` in NUD is immediately adjacent to `LBRACE`:
 
 | Token/Trigger        | AST Node      | Notes                               |
 | :------------------- | :------------ | :---------------------------------- |
+| `LPAREN` (`(`)       | `CallExpr`    | Call at BP 800; `f(x)`, `this(x)`   |
 | `IDENTIFIER` (infix) | `InfixExpr`   | Binary op: `left OP right`          |
 | `DOT` (`.`)          | `DotExpr`     | RHS can be any expression           |
 | `COLON` (`:`)        | `BindingExpr` | Right-associative; triggers reg.    |
@@ -339,6 +366,7 @@ type BooleanLiteral  struct { Value bool }
 type Name            struct { Value string }
 type PrefixExpr      struct { Op string; Right Node }
 type InfixExpr       struct { Left Node; Op string; Right Node }
+type CallExpr        struct { Func Node; Arg Node }
 type DotExpr         struct { Left Node; Key Node }
 type BindingExpr     struct { Name Node; Value Node }
 type ResourceDef     struct { Name Node; Table Node }
@@ -371,7 +399,7 @@ type Program         struct { Statements []Node }
 | 11 | `->` structural             | Doc bug → `TODO.md`                                 |
 | 12 | `?` non-table RHS           | Doc fixed                                           |
 | 13 | `<-` typo                   | Fixed to `<=`                                       |
-| 14 | `this(x)` call              | `this` is prefix keyword                            |
+| 14 | `this(x)` call              | `this` is Name; `(` LED at BP 800 → `CallExpr`     |
 | 15 | Negation vs `**`            | Keep BP 900; doc update → `TODO.md`                 |
 | 16 | `left`/`right`              | Name nodes (function params), never prefix          |
 | 17 | `\|>` right side            | Consumed as single Name token                       |
@@ -393,7 +421,7 @@ Inside `[...]` and `{...}`, new scopes may shadow outer bindings. The BP table s
 
 ## Package Layout
 
-```
+```shell
 pkg/
 ├── token/
 │   └── token.go
@@ -416,14 +444,16 @@ pkg/
 5. **Partial application**: `10 |> +` → `InfixExpr(10, |>, Name(+))`.
 6. **Composition**: `double o inc` → `InfixExpr(Name(double), o, Name(inc))`.
 7. **Keywords**: `left + right` → `InfixExpr(Name(left), +, Name(right))`.
-8. **`this` prefix**: `this(right - 1)` → `PrefixExpr`.
-9. **Table atoms**: `[1 2 3]` → three atoms, `[a:1]` → one binding.
-10. **Table space rule**: `[a : 1]` → three atoms vs `[a:1]` → one binding.
-11. **Function literals**: `{ left + right }`, `600{ left ** right }601`.
-12. **Prefix `@`**: `@stdout` → `ResourceInst`.
-13. **Infix `@`**: `"path" @ org` → `InfixExpr`.
-14. **Resource def**: `Logger @: [next: {...}]`.
-15. **Comma building**: `1, 2, 3` → left-assoc `CommaExpr`.
-16. **Flow**: `source -> transform -> sink`.
-17. **Error on undefined**: `foo 5` before `foo` is defined → `ErrorExpr`.
-18. **All example files**.
+8. **`this` call**: `this(right - 1)` → `CallExpr(Name(this), GroupExpr)`.
+9. **`this` infix**: `left this right` → `InfixExpr(Name(left), this, Name(right))`.
+10. **Table atoms**: `[1 2 3]` → three atoms, `[a:1]` → one binding.
+11. **Table space rule**: `[a : 1]` → three atoms vs `[a:1]` → one binding.
+12. **Function literals**: `{ left + right }`, `600{ left ** right }601`.
+13. **Prefix `@`**: `@stdout` → `ResourceInst`.
+14. **Infix `@`**: `"path" @ org` → `InfixExpr`.
+15. **Resource def**: `Logger @: [next: {...}]`.
+16. **Comma building**: `1, 2, 3` → left-assoc `CommaExpr`.
+17. **Flow**: `source -> transform -> sink`.
+18. **Call syntax**: `square(4)` → `CallExpr(Name(square), GroupExpr(4))`.
+19. **Error on undefined**: `foo 5` before `foo` is defined → `ErrorExpr`.
+20. **All example files**.
