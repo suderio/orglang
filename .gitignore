@@ -43,3 +43,20 @@ nb-configuration.xml
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
+
+# Generated test artifacts
+test/integration/testdata/*
+!test/integration/testdata/*.org
+test/sanity/*.c
+test/sanity/*.h
+test/integration/testdata/*.c
+test/integration/testdata/*.h
+test/integration/testdata/cat
+test/integration/testdata/cat_map
+test/integration/testdata/coercion
+test/integration/testdata/hello
+test/integration/testdata/operators
+test/integration/testdata/primitives
+test/integration/testdata/orglang.h
+org
+
