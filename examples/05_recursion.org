@@ -4,7 +4,7 @@
 # Factorial
 # 'this' refers to the current operator/function
 factorial : {
-    (right <- 1) ? [
+    (right <= 1) ? [
         true: 1
         false: (right * this(right - 1))
     ]

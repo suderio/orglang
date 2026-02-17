@@ -1314,8 +1314,10 @@ The keyword `this` refers to the current operator itself, allowing for anonymous
 
 ```rust
 factorial : {
-    (right <= 1) ? 1;
-    (right > 1) ? (right * this(right - 1));
+    (right <- 1) ? [
+        true: 1
+        false: (right * this(right - 1))
+    ]
 };
 ```
 
