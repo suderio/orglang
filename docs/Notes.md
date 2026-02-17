@@ -1,4 +1,5 @@
 # fun
+
 ## Definitions
 
 ### Structure
@@ -82,7 +83,6 @@ An expression in error will return `null` and, hopefully, an error message.
 > Obs: Every array or dictionary has the same structure, an array of Entries.
 > In an arrray the keys are the same as the index, in an dictionary they can be
 > different. Therefore they are also sets of Entries (there cannot be two equal keys)
-
 > Obs.: A dictionary may be made without some keys (ex.: `{a: 0, 1, 2}`). This
 > will be the same as `{a: 0, 1: 1, 2: 2}`. This is why a valid file can be a
 > list of valid expressions.
@@ -111,36 +111,35 @@ a set that is used as a function.
 
 * [a + 1] {1} = 2 # This is the same as {0: it + 1, a: it + 1}
 
-
 ## Examples
 
 ### Expressions
 
-```
+```rust
 1 + 1
 > 2
 ```
 
-```
+```rust
 2 + (3 * 4)
 > 14
 ```
 
 ### Arrays
 
-```
+```rust
 {1, 2, 3}
 ```
 
 ### Dictionaries
 
-```
+```rust
 {a: 1, 'b': 2, 3: 3, "four": 4, {five}: 5}
 ```
 
 ### Strings
 
-```
+```rust
 "abc"
 
 """
@@ -152,20 +151,25 @@ xpto
 ```
 
 ### Labels
-```
+
+```rust
 a: 1
 ```
-```
+
+```rust
 b: {1, 2}
 ```
-```
+
+```rust
 c: {a: 1, b: 2}
 ```
-```
+
+```rust
 b {0}
 > 1
 ```
-```
+
+```rust
 c {a}
 > 1
 ```
@@ -177,7 +181,8 @@ c {a}
 f g -> returns every element of g from f
 
 problem: arguments can be numbers / strings or just dicts?
-```
+
+```rust
 fact: {
   0: 1,
   1: 1,
@@ -188,7 +193,8 @@ fact {3}
 ```
 
 #### Sum of two numbers: `it n` is the idiom for the nth element of the argument array
-```
+
+```rust
 sum: {
   .: it {0} + it {1}
 }
@@ -197,7 +203,8 @@ sum {1, 2}
 ```
 
 #### Expressions with unbounded labels define functions (surrounded by `[]`)
-```
+
+```rust
 aSum: [a + b]
 aSum {1, 2}
 > 3
@@ -209,7 +216,8 @@ aSum {a: 1, b: 2}
 #### Maps
 
 A function (dict) with a `.` element will apply to every element of the filtered function
-```
+
+```rust
 {2, 3} fact
 > {2, 6}
 {1, 2} sum
@@ -219,7 +227,8 @@ A function (dict) with a `.` element will apply to every element of the filtered
 ```
 
 #### Filters
-```
+
+```rust
 {a: 1, b: 2, c: 3} {a, b}
 > {a: 1, b: 2}
 
@@ -231,7 +240,8 @@ A function (dict) with a `.` element will apply to every element of the filtered
 ```
 
 ### Stdin, Stdout, Stderr
-```
+
+```rust
 << "Hello World!"
 > "Hello World!"
 
@@ -245,7 +255,7 @@ A function (dict) with a `.` element will apply to every element of the filtered
 
 ### Everything together
 
-```
+```rust
 a: {1, 2, 3}
 
 a {}
@@ -307,7 +317,7 @@ s {0, 1}
 
 ### Syntatic Sugar
 
-```
+```rust
 it {a}  -> a'
 
 it {0} -> 0'
@@ -316,29 +326,33 @@ it {0} -> 0'
 ```
 
 ### Keywords
-- this
-- it
-- null
-- true
-- false
+
+* this
+
+* it
+* null
+* true
+* false
 
 ### Operators
 
-- arithm: + - * / % ( )
-- logic: < > <= >= <> = & && | || ~ (not) ^ (xor)
-- string: $ (string substitution)
-- language: { } [ ] ' # (comment) : , ; << >> <\!< @ ?
-- \ (latex strings)
+* arithm: + - * / % ( )
+* logic: < > <= >= <> = & && | || ~ (not) ^ (xor)
+* string: $ (string substitution)
+* language: { } [ ] ' # (comment) : , ; << >> <\!< @ ?
+* \ (latex strings)
 
 ### Imports
-```
+
+```rust
 - someImport: fun >> @/someFile.fun
 - anotherImport: >> fun @http://github.com/someRepo/someFile.fun
 - iso-8891: (fun >> @strings.fun) iso-8891
 ```
 
 ### Files
-```
+
+```rust
 - someString: iso-8891 >> @/someFile.txt
 ```
 
@@ -347,5 +361,3 @@ it {0} -> 0'
 File based namespace: At each file you define (rename) the imports, and each valid
 fun file is a Dictionary. By filtering the keys you can import only one element of
 the file.
-
-

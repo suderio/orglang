@@ -109,25 +109,24 @@ ELVIS ::= "?:"
 
 ## Key Parsing Rules (Pratt)
 
-1.  **Juxtaposition**: Two `Term`s appearing consecutively (e.g., `increment 5` or `list.0`).
-    *   **Logic**: Does the grammar treat `Space` as an implicit infix operator?
+1. **Juxtaposition**: Two `Term`s appearing consecutively (e.g., `increment 5` or `list.0`).
+    * **Logic**: Does the grammar treat `Space` as an implicit infix operator?
     No. Space is just a separator. The parser checks if the *next* token has a Left Binding Power (Infix).
-        *   If `increment` (NUD) is followed by `5` (NUD), and `5` has no LBP, this is a **Juxtaposition** (Function Call).
-        *   If `1` (NUD) is followed by `+` (LBP > 0), this is an **Infix Operation**.
+        * If `increment` (NUD) is followed by `5` (NUD), and `5` has no LBP, this is a **Juxtaposition** (Function Call).
+        * If `1` (NUD) is followed by `+` (LBP > 0), this is an **Infix Operation**.
 
-2.  **The `@` Operator**:
-    *   Defined as Unary Prefix (`@identifier`).
-    *   Usage: `@stdout` (Prefix).
-    *   Usage: `"path" @ file` (Infix context).
-    *   The `@` operator is special. It is a prefix operator when used as `@identifier` (or `@ identifier`), but it is an infix operator when used as `"path" @ file`.
+2. **The `@` Operator**:
+    * Defined as Unary Prefix (`@identifier`).
+    * Usage: `@stdout` (Prefix).
+    * Usage: `"path" @ file` (Infix context).
+    * The `@` operator is special. It is a prefix operator when used as `@identifier` (or `@ identifier`), but it is an infix operator when used as `"path" @ file`.
 
-3.  **Binding Power**:
-    *   The `!N{...}N!` syntax is handled as a `Block` with optional metadata.
+3. **Binding Power**:
+    * The `!N{...}N!` syntax is handled as a `Block` with optional metadata.
     Yes, it is a block. The binding tags are just metadata.
 
 ## Resolved Ambiguities
 
-1.  **Comma Separator**: `,` is a table-construction operator. It merges elements or tables.
-2.  **Comparison Chaining**: `a < b < c` parses as `(a < b) < c`. Since `true=1`, `1 < c` is valid.
-3.  **Assignments**: `x : 1` is a table insertion expression that returns the assigned value.
-
+1. **Comma Separator**: `,` is a table-construction operator. It merges elements or tables.
+2. **Comparison Chaining**: `a < b < c` parses as `(a < b) < c`. Since `true=1`, `1 < c` is valid.
+3. **Assignments**: `x : 1` is a table insertion expression that returns the assigned value.

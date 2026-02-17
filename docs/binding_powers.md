@@ -47,12 +47,12 @@ This document lists the binding powers for all basic operators in OrgLang, as im
 
 ### Mixed Operators (Prefix & Infix)
 
-*   **`-`**:
-    *   **Prefix**: Unary Negation (`-1`) -> BP 6
-    *   **Infix**: Subtraction (`1 - 2`) -> BP 4
-*   **`(`**:
-    *   **Prefix**: Grouping `(1 + 2)` -> BP 1
-    *   **Infix**: Call `func(1, 2)` -> BP 7
-*   **`{`**:
-    *   **Prefix**: Block `{ ... }` -> BP 1
-    *   **Infix**: Binding Power `700{ ... }` -> BP 7
+* **`-`**:
+  * **Prefix**: Unary Negation (`-1`) -> BP 6
+  * **Infix**: Subtraction (`1 - 2`) -> BP 4
+* **`(`**:
+  * **Prefix**: Grouping `(1 + 2)` -> BP 1
+  * **Infix**: Call `func(1, 2)` -> BP 7
+* **`{`**:
+  * **Prefix**: Block `{ ... }` -> BP 1
+  * **Infix**: Binding Power `700{ ... }` -> BP 7

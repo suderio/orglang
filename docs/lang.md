@@ -14,24 +14,24 @@ logic, table manipulation, and more.
 
 ## Initial Design Goals
 
--   Scripting language, used to fast development
--   Very few types:
-    -   Error
-    -   Boolean
-    -   Number (Integer, Rational and Decimal subtypes)
-    -   Table (String subtype)
-    -   Operator
-    -   Resource
--   Variables can hold any type (dynamic type, only values have type,
+- Scripting language, used to fast development
+- Very few types:
+  - Error
+  - Boolean
+  - Number (Integer, Rational and Decimal subtypes)
+  - Table (String subtype)
+  - Operator
+  - Resource
+- Variables can hold any type (dynamic type, only values have type,
     not variables)
--   Error is the basic value ; in (almost) any operation with error,
+- Error is the basic value ; in (almost) any operation with error,
     error is returned
--   Resources are, e.g., files, stdin, stdout, etc.
--   Every Operator (i.e., Function) must be able to return a value for
+- Resources are, e.g., files, stdin, stdout, etc.
+- Every Operator (i.e., Function) must be able to return a value for
     any type, or Error if the value is not supported.
--   Extreme orthogonality of the basic operators. For instance,
+- Extreme orthogonality of the basic operators. For instance,
     `[0] + [0 0] = 3` (uses the size of the Table). `"Hello" - 1 = 4`.
--   Spaces are used to separate tokens. Some Symbols can be used
+- Spaces are used to separate tokens. Some Symbols can be used
     without spaces, such as `@`, `:` (and other assignments), `.`,
     `(` , `)` , `[` , `]` , `{` , `}` and `,`. Therefore, they cannot be used
     in identifiers. Identifiers can contain letters, numbers, and underscores
@@ -43,7 +43,6 @@ logic, table manipulation, and more.
 
 A OrgLang program is a sequence of expressions, separated by semicolons
 (`;`). Example:
-
 
 ```orglang
 x : 42;
@@ -112,29 +111,29 @@ This is a debatable design choice. It is not clear if it is better to have a det
 
 ## Supported Literals
 
-1.  Integers:
+1. Integers:
 
 ``` orglang
 x : 42;
 ```
 
-1.  Decimals:
+1. Decimals:
 
 ``` orglang
 pi : 3.14;
 ```
 
-1.  Rationals:
+1. Rationals:
 
 ``` orglang
 two_thirds : 2/3;
 ```
 
-1.  Strings:
+1. Strings:
 
-2.  Simple: Enclosed in double quotes (`"`).
+2. Simple: Enclosed in double quotes (`"`).
 
-3.  Multiline (DocStrings): Enclosed in `"""`.
+3. Multiline (DocStrings): Enclosed in `"""`.
 
 ``` orglang
 simpleString : "Hello, World!";
@@ -146,13 +145,13 @@ docString : """
 
 The String literal creates a Table indexed by integers starting at 0, with every character as a value.
 
-1.  Booleans:
+1. Booleans:
 
 ``` orglang
 flag : true;
 ```
 
-1.  Error:
+1. Error:
 
 A value that has the distinct property of not being assignable. Everytime an error is returned, it is expected that some message is printed to stderr.
 
@@ -164,14 +163,14 @@ Most operators will return Error if one of the arguments is Error. The exception
 value : Error; # Actually, this is not valid code, since Error cannot be assigned.
 ```
 
-1.  Special Identifiers:
+1. Special Identifiers:
 
-2.  `this`: Refers to the whole expression of an operator. Used in
+2. `this`: Refers to the whole expression of an operator. Used in
     recursion.
 
-3.  `right`: The right argument, or the argument of prefix operators.
+3. `right`: The right argument, or the argument of prefix operators.
 
-4.  `left`: The left argument, or the argument of postfix operators.
+4. `left`: The left argument, or the argument of postfix operators.
 
 ## Operators
 
@@ -180,17 +179,17 @@ library\'.
 
 ### Primitive
 
-  |Operator       | Description               | Example                        
+  |Operator       | Description               | Example
   |---------------|---------------------------|--------------------------------
-  |`.`            | Table Value Access        |`table.key` (returns thunk)                    
-  |`@`            | Unit                      |`"Hello World" -> @stdout`      
-  |`?`            | Table Eval Access         |`table ? key` (evaluates thunk)                    
-  |`??`           | Error Test                |`x ?? 42`                      
-  |`?:`           | Elvis (falsey?)           |`x ?: 42`                      
-  |`->`           | Broadcast Map             |`[1 2 3] -> sum`               
-  |`-<`           | Balanced Map              |`[1 2 3] -< [sum1 sum2]`       
-  |`-<>`          | Join Map                  |`[1 2 3] -<> sum`              
-  |`o`            | Compose                   |`g o f`                        
+  |`.`            | Table Value Access        |`table.key` (returns thunk)
+  |`@`            | Unit                      |`"Hello World" -> @stdout`
+  |`?`            | Table Eval Access         |`table ? key` (evaluates thunk)
+  |`??`           | Error Test                |`x ?? 42`
+  |`?:`           | Elvis (falsey?)           |`x ?: 42`
+  |`->`           | Broadcast Map             |`[1 2 3] -> sum`
+  |`-<`           | Balanced Map              |`[1 2 3] -< [sum1 sum2]`
+  |`-<>`          | Join Map                  |`[1 2 3] -<> sum`
+  |`o`            | Compose                   |`g o f`
   |`|>`           | Partial application       |`add1: 1 |> +`
   |`N{, }N`       | Left/Right Binding Power  |`501{right - left}502`
 
@@ -221,7 +220,7 @@ Here is the definitive binding power table for **OrgLang**.
 | `.`, `?` | Access / Eval Lookup | 800 | 801 | Left |
 | `~`, `@`, `-` | Unary (Prefix) | 0 | 900 | N/A (High) |
 
-### Key Design Decisions:
+### Key Design Decisions
 
 1. **The Default Zone (100):**
 By setting the default for user-defined operators to **100**, we ensure that custom operators are stronger than the structural flow (`->`, `|>`) but weaker than standard arithmetic (`+`, `*`). This prevents a custom operator from "stealing" an operand that should mathematically belong to a sum or product.
@@ -259,11 +258,10 @@ Arithmetic operators always return a number (integer or decimal).
   |`%`       | Modulo           | `5 % 2`
   |`**`      | Exponentiation   | `2 ** 3`
 
-
 ### Extended Assignment
 
-  |Operator   | Description                     | Example
-  |---------- | ------------------------------- | -----------
+  |Operator  | Description                     | Example
+  |----------| ------------------------------- | -----------
   |`:+`      | Addition and Assignment         | `x :+ 2`
   |`:-`      | Subtraction and Assignment      | `x :- 1`
   |`:*`      | Multiplication and Assignment   | `x :* 3`
@@ -275,7 +273,7 @@ Arithmetic operators always return a number (integer or decimal).
   |`:<<`     | Left Shift and Assignment       | `x :<< 5`
   |`:&`      | AND and Assignment              | `x :& y`
   |`:^`      | XOR and Assignment              | `x :^ y`
-  |`:\|`      | OR and Assignment               | `x :| y`
+  |`:\|`     | OR and Assignment               | `x :\| y`
   |`:~`      | Bitwise NOT and Assignment      | `x :~ 1`
 
 ### Logical
@@ -315,7 +313,7 @@ Care must be taken when doing comparison chaining. Since every comparison operat
 
 ### Tables
 
-1.  Construction
+1. Construction
 
     Tables are lists of elements or key-value pairs, constructed with
     square brackets (`[]`):
@@ -325,7 +323,7 @@ Care must be taken when doing comparison chaining. Since every comparison operat
     table2 : ["key": "value" "anotherKey": 42];
     ```
 
-2.  Concatenation
+2. Concatenation
 
     Commas (`,`) can be used to concatenate elements into tables:
 
@@ -337,7 +335,7 @@ Care must be taken when doing comparison chaining. Since every comparison operat
     If the left hand is a list, ',' adds the right hand argument. If
     it is not a list, it creates a new list with the two elements.
 
-3.  Accessing Elements
+3. Accessing Elements
 
     Elements can be accessed using `.`:
 
@@ -355,7 +353,7 @@ Care must be taken when doing comparison chaining. Since every comparison operat
     # result: Error
     ```
 
-4.  Laziness of values
+4. Laziness of values
 
     Values on tables are not evaluated until they are accessed. This is
 different from functions, which are evaluated when they are called.
@@ -385,10 +383,9 @@ result : (35 % 2 == 1) ? table
 # result: "odd"
 ```
 
-
 ### Functions and Operators
 
-1.  Defining Unary Operators
+1. Defining Unary Operators
 
     Custom operators can be defined using '{}', the keywords `left` and `right` are optional:
 
@@ -405,8 +402,7 @@ result : (35 % 2 == 1) ? table
 
     Obs.: the `left` argument is `Error`.
 
-
-2.  Defining Binary Operators
+2. Defining Binary Operators
 
     ``` orglang
     reverse_minus : {right - left};
@@ -417,7 +413,7 @@ result : (35 % 2 == 1) ? table
     ``` orglang
     result : 2 reverse_minus 6;
 
-3.  Recursion
+3. Recursion
 
     Every operator defines a `this` operator that references itself.
 
@@ -431,7 +427,7 @@ result : (35 % 2 == 1) ? table
 
 ### Strings and Substitutions
 
-1.  Positional Substitution
+1. Positional Substitution
 
     Use `$N` to substitute values from a list:
 
@@ -439,7 +435,7 @@ result : (35 % 2 == 1) ? table
     message : "Value: $0, Double: $1" $ [42, 84];
     ```
 
-2.  Variable Substitution
+2. Variable Substitution
 
     Use `$var` to substitute the value of a declared variable:
 
@@ -450,7 +446,7 @@ result : (35 % 2 == 1) ? table
 
 ### Comments
 
-1.  Single-Line
+1. Single-Line
 
     Start with `#`:
 
@@ -458,7 +454,7 @@ result : (35 % 2 == 1) ? table
     # This is a single-line comment
     ```
 
-2.  Block
+2. Block
 
     Enclosed in `###`:
 
@@ -488,11 +484,11 @@ The `@` operator is the Lifter. It takes a symbol or a string
 and "prompts" the runtime to associate it with a system effect or a
 resource handle.
 
-1.  `@stdout`: A sink for the standard output.
+1. `@stdout`: A sink for the standard output.
 
-2.  `@file`: A constructor that turns a path into a streamable handle.
+2. `@file`: A constructor that turns a path into a streamable handle.
 
-3.  Visual logic: Think of `@` as the boundary. Anything with a
+3. Visual logic: Think of `@` as the boundary. Anything with a
     `@` touches the "outside world" (the OS).
 
 ### `->` (The Pulse / Flow)
@@ -500,10 +496,10 @@ resource handle.
 The `->` operator is the Stream Binder. It moves data from a
 source to a destination.
 
-1.  `source -> sink`: Every time `source` produces a "pulse" of data,
+1. `source -> sink`: Every time `source` produces a "pulse" of data,
     it is pushed into `sink`.
 
-2.  `"Hello World" -> @stdout` treats the string as a single-pulse
+2. `"Hello World" -> @stdout` treats the string as a single-pulse
     stream and sends it to the console.
 
 When the left side is a table, every one of its elements is sent to the sink. To send a table as a single pulse, wrap it in a list:
@@ -525,7 +521,7 @@ The `|>` operator is the Partial Applier. It takes a value and
 "anchors" it into the `left` slot of the following expression,
 returning a new function.
 
-1.  `("Hello " |> concat)`: This creates a new unary function that
+1. `("Hello " |> concat)`: This creates a new unary function that
     already has `"Hello "` as its `left` value. It is now waiting for a
     `right` value to complete the concatenation.
 
@@ -535,7 +531,7 @@ The `o` operator is the Kleisli Composer. it merges two
 functions or resources into a single pipeline before any data flows
 through them.
 
-1.  `h : g o f`: Creates a new transformation where the output of `f`
+1. `h : g o f`: Creates a new transformation where the output of `f`
     becomes the input of `g`.
 
 ### `-<>` (The Barrier / Join)
@@ -545,7 +541,7 @@ has been split (forked). It tells the runtime: "Do not proceed to the
 next node until all previous parallel branches have completed their
 current frame."
 
-A flows into B and C in parallel. 
+A flows into B and C in parallel.
 -<> ensures D only starts after B and C finish. A -> [ B C ] -<> D;
 
 ## Laziness
@@ -560,31 +556,31 @@ Here are the specific consequences for the performance and execution model:
 
 In an eager model, a map operation would transform the entire list before moving to the next node. In the OrgLang lazy model, the mapping operation creates a **Chain of Thunks**.
 
-* **How it works:** When `@stdout` asks for data, it sends a "pull" signal up the chain. The Map node receives this, pulls one element from the source, applies the function `{ }`, and passes the result down.
-* **The Benefit:** You achieve **Constant Memory Usage**. Whether you are processing 10 items or 10 billion, the memory footprint remains the same because only one "frame" of the map is active at a time.
+- **How it works:** When `@stdout` asks for data, it sends a "pull" signal up the chain. The Map node receives this, pulls one element from the source, applies the function `{ }`, and passes the result down.
+- **The Benefit:** You achieve **Constant Memory Usage**. Whether you are processing 10 items or 10 billion, the memory footprint remains the same because only one "frame" of the map is active at a time.
 
 ### 2. Performance: Thunk Fusing (Zero-Copy)
 
 One of the biggest performance wins in lazy mapping is **Operator Fusing**. If you have multiple maps in a row:
 `data -> { right + 1 } -> { right * 2 } -> @stdout`
 
-* **Eager Model:** Would create an intermediate list after the first map, then another after the second.
-* **OrgLang Lazy Model:** The Go compiler "fuses" these into a single C function. Instead of passing data between functions, it generates a single loop that performs `(x + 1) * 2`.
-* **Result:** You eliminate the overhead of function calls and intermediate memory writes, reaching **raw C loop speeds**.
+- **Eager Model:** Would create an intermediate list after the first map, then another after the second.
+- **OrgLang Lazy Model:** The Go compiler "fuses" these into a single C function. Instead of passing data between functions, it generates a single loop that performs `(x + 1) * 2`.
+- **Result:** You eliminate the overhead of function calls and intermediate memory writes, reaching **raw C loop speeds**.
 
 ### 3. Consequence: Latency vs. Throughput
 
 Laziness changes the "rhythm" of your program:
 
-* **Lower Initial Latency:** The first item reaches the `@stdout` almost instantly. You don't have to wait for the entire map to finish.
-* **Overhead per Item:** There is a tiny "bookkeeping" cost to manage the thunk state for each item. In high-throughput scenarios (millions of small integers), this overhead might be visible compared to a hand-optimized C array loop.
+- **Lower Initial Latency:** The first item reaches the `@stdout` almost instantly. You don't have to wait for the entire map to finish.
+- **Overhead per Item:** There is a tiny "bookkeeping" cost to manage the thunk state for each item. In high-throughput scenarios (millions of small integers), this overhead might be visible compared to a hand-optimized C array loop.
 
 ### 4. Memory Management: Arena Lifetimes
 
 In a lazy map, the **Arena** becomes a moving window.
 
-* **The Risk:** If a mapping function allocates memory (e.g., creating a string) and that string is passed down the pipeline, the memory must stay alive until the final sink (`@stdout`) is done with it.
-* **The Teardown:** OrgLang handles this by linking the "Frame Life" to the Arena. Once the `@stdout` finishes processing a frame, the "Frame Arena" is reset. This prevents memory from ballooning during long-running streams.
+- **The Risk:** If a mapping function allocates memory (e.g., creating a string) and that string is passed down the pipeline, the memory must stay alive until the final sink (`@stdout`) is done with it.
+- **The Teardown:** OrgLang handles this by linking the "Frame Life" to the Arena. Once the `@stdout` finishes processing a frame, the "Frame Arena" is reset. This prevents memory from ballooning during long-running streams.
 
 ### 5. Interaction with Parallelism (`-> [ B, C ]`)
 
@@ -598,7 +594,7 @@ This is where laziness gets complex. If you fork a stream to two parallel nodes:
 
 | Metric | Eager Mapping | OrgLang Lazy Mapping |
 | --- | --- | --- |
-| **Memory Usage** |  (proportional to data size) | ** (constant per frame)** |
+| **Memory Usage** |  (proportional to data size) | **(constant per frame)** |
 | **Start-up Time** | Slow (waits for full map) | **Instant (pull-based)** |
 | **CPU Cache** | Good (linear array access) | **Excellent (data stays in L1 cache between steps)** |
 | **Composition** | Expensive (creates temp lists) | **Free (thunk fusing)** |
@@ -694,14 +690,13 @@ Once these are defined, you can connect them using the `->` operator. The runtim
 4. `@stdout` performs the `@sys("write")`.
 5. The cycle repeats until `@stdin` returns `None`.
 
-
 ### 4. Why this matters for the C Runtime
 
 When your Go compiler translates these to C, it uses the signatures we defined:
 
-* **Setup:** Becomes a `struct` containing `fd` and `buffer`.
-* **Step:** Becomes a function `OrgValue stdin_step(OrgContext* ctx, void* state, OrgValue input)`.
-* **Teardown:** Registered in the `OrgContext` to be called at the end.
+- **Setup:** Becomes a `struct` containing `fd` and `buffer`.
+- **Step:** Becomes a function `OrgValue stdin_step(OrgContext* ctx, void* state, OrgValue input)`.
+- **Teardown:** Registered in the `OrgContext` to be called at the end.
 
 This architecture ensures that even the most basic I/O is **asynchronous** and **memory-safe** by default. If `@stdin` is waiting for a keypress, only that specific branch of the graph is paused—the rest of the OrgLang engine can keep ticking.
 

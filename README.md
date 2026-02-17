@@ -445,17 +445,14 @@ Arithmetic operators perform standard mathematical calculations. In OrgLang, the
 
 OrgLang supports standard bitwise operations for integers:
 
-- `&`: Bitwise AND
-
-- `|`: Bitwise OR
-
-- `^`: Bitwise XOR
-
-- `~`: Bitwise NOT (Prefix)
-
-- `<<`: Left Shift
-
-- `>>`: Right Shift
+| Operator | Name | Arity | Description |
+| :--- | :--- | :--- | :--- |
+| `&` | Bitwise AND | Binary | Returns a number where each bit is `1` only if the corresponding bits of both operands are `1`. |
+| `\|` | Bitwise OR | Binary | Returns a number where each bit is `1` if at least one of the corresponding bits of the operands is `1`. |
+| `^` | Bitwise XOR | Binary | Returns a number where each bit is `1` if the corresponding bits of the operands are different. |
+| `~` | Bitwise NOT | Unary | Returns the bitwise complement (e.g., `~ 0 = -1`). |
+| `<<` | Left Shift | Binary | Shifts the left operand's bits to the left by the number of positions specified by the right operand. |
+| `>>` | Right Shift | Binary | Shifts the left operand's bits to the right by the number of positions specified by the right operand. |
 
 Example:
 
@@ -475,14 +472,14 @@ Comparison operators compare two values and always return a [Boolean literal](#b
 > [NOTE]
 > **Implicit Coercion**: Comparison operators follow the same coercion rules as [Arithmetic operators](#arithmetic-operators): Tables and Strings use their size, and Booleans are treated as `1` (`true`) or `0` (`false`).
 
-| Operator | Description | Example |
-| :--- | :--- | :--- |
-| `=` | Equal to | `x = y` |
-| `<>`, `~=` | Not equal to | `x <> y` |
-| `<` | Less than | `x < y` |
-| `<=` | Less than or equal to | `x <= y` |
-| `>` | Greater than | `x > y` |
-| `>=` | Greater than or equal to | `x >= y` |
+| Operator | Name | Arity | Description |
+| :--- | :--- | :--- | :--- |
+| `=` | Equal to | Binary | Returns `true` if the operands are equal. |
+| `<>`, `~=` | Not equal to | Binary | Returns `true` if the operands are not equal. |
+| `<` | Less than | Binary | Returns `true` if the left operand is strictly less than the right operand. |
+| `<=` | Less than or equal to | Binary | Returns `true` if the left operand is less than or equal to the right operand. |
+| `>` | Greater than | Binary | Returns `true` if the left operand is strictly greater than the right operand. |
+| `>=` | Greater than or equal to | Binary | Returns `true` if the left operand is greater than or equal to the right operand. |
 
 > [WARNING]
 > **Comparison Chaining**: Since every comparison returns a Boolean, the result of a chain (e.g., `x < y < z`) is the result of the **last comparison** in the chain. This differs from languages where such a chain might be shorthand for `(x < y) && (y < z)`.
@@ -1539,6 +1536,9 @@ Currently, OrgLang exposes a single, low-level primitive for system interaction:
 
 - **Purpose**: It acts as a direct bridge to C-level system calls.
 
+> [NOTE]
+> The `@sys` primitive is the only way to interact with the system. It is not a resource, but a primitive that can be used to create resources. It will probably be removed in the future, and replaced by a set of more specialized primitives.
+
 **2. Standard Library Resources**
 These are high-level abstractions built *using* the `@sys` primitive.
 
@@ -1606,7 +1606,7 @@ main: {["Hello"] -> @Logger}
 
 Resources are primarily used with Flux operators to move data.
 
-- `->` (**Push**): Sends data to a resource's `step` function. `source -> @stdout`.
+- `->` (**Push**): Sends data to a resource's `next` function. `source -> @stdout`.
 
 - `-<` (**Dispatch**): load-balances data across multiple resources.
 
@@ -1628,6 +1628,46 @@ Scoped resources are a special pattern where a resource manages a memory arena f
 ```
 
 In this example, `@file_reader` allocates its buffer within `@arena`. when the flow completes, `@arena` is freed, automatically closing the file and reclaiming memory.
+
+### Memory management
+
+In **OrgLang**, the Arena model is designed to be high-performance yet flexible enough to handle the non-linear growth typical of recursive functions and unpredictable data streams. By moving away from a single fixed block to a **Chained Page Strategy**, we ensure that the language remains "systems-ready" while keeping the "pointer-bumping" speed.
+
+Here is how the architecture handles your specific concerns:
+
+#### Handling Recursive Functions
+
+Recursive functions present a unique challenge for Arenas because each call creates a new scope but depends on the parent's data.
+
+- **Sub-Arena Nesting**: Every time a `{ }` block is entered, the runtime doesn't necessarily create a new heap; it simply marks a "checkpoint" in the current Arena.
+- **Tail-Call Optimization (TCO)**: Since OrgLang uses **Lazy Evaluation** and **Thunks**, the compiler can often detect if a recursive call is the final operation. In these cases, it performs a "jump" instead of a "push," reusing the current Arena frame and preventing stack/memory overflow.
+- **Closure Persistence**: If a recursive function returns a closure, that closure "holds onto" its birth Arena. The Arena remains alive until the closure itself is no longer reachable, ensuring captured variables (like a recursive state) don't vanish prematurely.
+
+#### Dealing with Unknown Memory Demands
+
+Since the compiler cannot always predict how much memory a flow (`->`) will need, OrgLang employs a **Chained Page Allocation** strategy.
+
+#### The Allocation Strategy: "The Multi-Page Arena"
+
+Instead of a single `mmap` call for a giant block, the runtime works in **Pages** (typically 4KB or 2MB).
+
+1. **Initial Page**: When a flow starts, the runtime requests one memory page from the OS via `@sys("mmap")`.
+2. **Pointer Bumping**: Allocation happens by incrementing the `top` pointer.
+3. **Page Overflow**: If `top + request > page_end`, the runtime allocates a **new page** and links it to the previous one (creating a linked list of pages).
+4. **Bulk Deallocation**: When the flow ends, the runtime doesn't free items individually; it iterates through the page list and releases every page back to the OS in one go.
+
+#### Allocation Strategy Details
+
+| Feature | Implementation | Benefit |
+| --- | --- | --- |
+| **Growth** | **By-Demand Paging** | Doesn't waste RAM upfront for small scripts; scales to GBs for large flows. |
+| **Small Objects** | **Internal Fragmentation** | Since we don't `free` individual items, we don't care about "holes." We just keep moving forward. |
+| **Large Objects** | **Dedicated Pages** | If you request `@mem(10MB)`, the runtime bypasses standard pages and maps a specific 10MB region for that object. |
+| **Cleanup** | **Reverse Teardown** | Before releasing pages, the runtime walks the "Teardown Registry" to close file descriptors or sockets registered in that Arena. |
+
+#### Final Specification Note: The "Frame" Reset
+
+For long-running streams (like `@stdin -> @stdout`), the scheduler can perform **Frame Resets**. Between pulses, if the runtime detects that a pulse's data has been fully consumed by all sinks, it can reset the Arena pointers for that specific branch, effectively providing "infinite" execution in a small, fixed memory footprint.
 
 ### Operator Definitions
 
