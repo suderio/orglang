@@ -39,18 +39,18 @@ The `/` character is a valid identifier character, but it also forms **rational 
 | `INTEGER`    | Optional sign glued to `[0-9]+`               | `42`, `-7`, `+3`        |
 | `DECIMAL`    | Optional sign glued to `[0-9]+.[0-9]+`        | `3.14`, `-0.001`        |
 | `RATIONAL`   | `INTEGER/INTEGER` (no spaces)                 | `1/2`, `-3/4`           |
-| `STRING`     | `"..."`                                       | `"hello"`, `"a\nb"`   |
+| `STRING`     | `"..."`                                       | `"hello"`, `"a\nb"`     |
 | `DOCSTRING`  | `"""..."""` (multiline, strips common indent) | `"""\n  a\n  b\n"""`    |
-| `RAWSTRING`  | `'...'`                                       | `'no\escapes'`         |
-| `RAWDOC`     | `'''...'''` (multiline raw, strips indent)    | `'''\n  raw\n'''`      |
+| `RAWSTRING`  | `'...'`                                       | `'no\escapes'`          |
+| `RAWDOC`     | `'''...'''` (multiline raw, strips indent)    | `'''\n  raw\n'''`       |
 | `BOOLEAN`    | `true` or `false`                             | `true`, `false`         |
 
 ### Identifiers & Keywords
 
-| Token Type   | Description                                                             |
-| :----------- | :---------------------------------------------------------------------- |
+| Token Type   | Description                                                                                                                                |
+| :----------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
 | `IDENTIFIER` | Starts with `\p{Letter}`, `\p{Symbol}`, `\p{Number}`, or `_`; continues with same + ASCII digits. `\p{Punctuation}` excluded (except `_`). |
-| `KEYWORD`    | An identifier matching a reserved word |
+| `KEYWORD`    | An identifier matching a reserved word                                                                                                     |
 
 Reserved keywords: `true`, `false`, `this`, `left`, `right`.
 
@@ -154,14 +154,14 @@ Inside `"..."` and `"""..."""` strings, the `\` character introduces an escape:
 
 | Escape       | Meaning                        |
 | :----------- | :----------------------------- |
-| `\n`         | Newline (LF, U+000A)          |
-| `\t`         | Tab (U+0009)                  |
-| `\r`         | Carriage return (U+000D)      |
-| `\\`         | Literal backslash             |
-| `\"`         | Literal double quote          |
-| `\0`         | Null (U+0000)                 |
-| `\uXXXX`     | Unicode BMP (4 hex digits)    |
-| `\u{XXXXXX}` | Unicode codepoint (1-6 hex)   |
+| `\n`         | Newline (LF, U+000A)           |
+| `\t`         | Tab (U+0009)                   |
+| `\r`         | Carriage return (U+000D)       |
+| `\\`         | Literal backslash              |
+| `\"`         | Literal double quote           |
+| `\0`         | Null (U+0000)                  |
+| `\uXXXX`     | Unicode BMP (4 hex digits)     |
+| `\u{XXXXXX}` | Unicode codepoint (1-6 hex)    |
 
 Any other `\X` sequence is an `ILLEGAL` token.
 

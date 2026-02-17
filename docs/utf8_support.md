@@ -12,14 +12,14 @@ Inside `"..."` and `"""..."""` strings, the following escape sequences are recog
 
 | Escape       | Meaning                        | Example               |
 | :----------- | :----------------------------- | :-------------------- |
-| `\n`         | Newline (LF, U+000A)          | `"line1\nline2"`      |
-| `\t`         | Tab (U+0009)                  | `"col1\tcol2"`        |
-| `\r`         | Carriage return (U+000D)      | `"text\r\n"`          |
-| `\\`         | Literal backslash             | `"path\\file"`        |
-| `\"`         | Literal double quote          | `"say \"hi\""`        |
-| `\0`         | Null (U+0000)                 | `"null\0byte"`        |
-| `\uXXXX`     | Unicode BMP codepoint (4 hex) | `"\u00E9"` → `é`     |
-| `\u{XXXXXX}` | Unicode codepoint (1-6 hex)   | `"\u{1F389}"` → `🎉` |
+| `\n`         | Newline (LF, U+000A)           | `"line1\nline2"`      |
+| `\t`         | Tab (U+0009)                   | `"col1\tcol2"`        |
+| `\r`         | Carriage return (U+000D)       | `"text\r\n"`          |
+| `\\`         | Literal backslash              | `"path\\file"`        |
+| `\"`         | Literal double quote           | `"say \"hi\""`        |
+| `\0`         | Null (U+0000)                  | `"null\0byte"`        |
+| `\uXXXX`     | Unicode BMP codepoint (4 hex)  | `"\u00E9"` → `é`      |
+| `\u{XXXXXX}` | Unicode codepoint (1-6 hex)    | `"\u{1F389}"` → `🎉`  |
 
 Any other `\X` sequence is an error.
 
