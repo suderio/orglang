@@ -206,6 +206,19 @@ type Token struct {
 }
 ```
 
+### Numeric Token Storage for Arbitrary Precision
+
+All numeric tokens store their value as **raw strings**, not native Go types. This is critical for GMP integration (see `docs/number_support.md`):
+
+| Token | Stored Value | Reason |
+| :--- | :--- | :--- |
+| `INTEGER` | Raw digit string (e.g., `"123456789012345678901234567890"`) | Passed to `mpz_set_str` — no overflow possible |
+| `DECIMAL` | Raw string (e.g., `"3.14"`) | Scale = count of fractional digits (lost if converted to `float64`) |
+| `RATIONAL` | Raw string (e.g., `"1/2"`) | Numerator and denominator passed to `mpq_set_str` |
+
+> [!NOTE]
+> The lexer must **never** convert number literals to Go `int64` or `float64`. The `Literal` field in the `Token` struct already stores the raw string. The codegen stage converts these strings to GMP initialization calls.
+
 ## Package Layout
 
 ```dot
