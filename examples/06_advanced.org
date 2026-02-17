@@ -10,13 +10,13 @@ res1 : add_10 5; # 15
 # Pipeline flow
 # data -> process
 # "Hello" -> print
-msg : "HelloOrg" -> @stdout;
+msg : {"HelloOrg" -> @stdout};
 
 # Custom Binding Power (if parser supports it)
 # Defining a high-precedence exponentiation-like operator
-# Syntax from lang.md: !700{ left ** right }700!
+# Syntax from lang.md: 700{ left ** right }700
 # assuming ** is pow
-pow_op : !600{ left ** right }601!;
+pow_op : 600{ left ** right }601;
 
 res2 : 2 pow_op 3 * 2; 
 # With precedence 600, this should bind tighter than * (300)

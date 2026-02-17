@@ -23,7 +23,7 @@ age : person.age;   # 30
 # Updating an existing key
 person.age : 31;
 
-# Adding a new key (assuming this is allowed for mutable map-like tables)
+# Adding a new key
 person.job : "Adventurer";
 
 # Nested tables
@@ -39,4 +39,4 @@ center : matrix.1.1; # 5
 # Merging lists
 list1 : [1 2];
 list2 : [3 4];
-combined : list1, list2; # [1 2 [3 4]] ? Needs verification of ',' behavior.
+combined : list1, list2; # [1 2 [3 4]] 

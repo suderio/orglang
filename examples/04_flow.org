@@ -13,15 +13,14 @@ invalid : check_positive -5; # false
 # The '??' operator (Error Coalescing)
 # Returns left if not Error, else right.
 safe_val : invalid ?? 0; # false
+null_val : 1 / (1 - 1); # Error
+fallback : null_val ?? "default"; # "default"
 
 # The '?:' operator (Elvis)
 # Returns left if "truthy" (not false, not empty, not zero), else right.
 # Usage for default values.
 zero : 0;
 default_val : zero ?: 100; # 100 (since 0 is falsy)
-# null_val : Error; # This should now compile!!!
-null_val : 1 / (1 - 1); # Error. This should now compile!!!
-fallback : null_val ?: "default"; # "default"
 
 # Flow control with Arrays and Broadcast
 # [1 2 3] -> check_positive
