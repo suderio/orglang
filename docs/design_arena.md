@@ -90,7 +90,7 @@ typedef struct OrgScopedIterator {
 The `@arena` resource acts as a factory for these scopes.
 
 ```rust
-Arena : resource [
+Arena @: [
     setup: { "mem" @ sys }    # Returns a new Arena
     # Teardown is handled implicitly by the ScopedIterator calling arena_free?
     # Or proper: 

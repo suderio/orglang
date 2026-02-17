@@ -616,7 +616,7 @@ Since `@stdin` acts as a **Source** (producing pulses) and `@stdout` acts as a *
 Standard input is a resource that continuously "pulls" data from the OS file descriptor `0`.
 
 ```orglang
-stdin : resource [
+stdin @: [
     setup: {
         # FD 0 is the universal constant for stdin
         fd : 0;
@@ -646,7 +646,7 @@ stdin : resource [
 Standard output is slightly different. In its `step` block, it doesn't "generate" data; it **receives** it via the `right` slot (the data coming from the pipeline).
 
 ```orglang
-stdout : resource [
+stdout @: [
     setup: {
         # FD 1 is standard output
         fd : 1;

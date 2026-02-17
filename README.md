@@ -1507,7 +1507,7 @@ OrgLang reserves a set of operators for **extended assignment**, which combines 
 
 Resources in OrgLang are the bridge between the pure, immutable world of your program and the mutable, effectful world outside (file system, network, screen). They are based on **Algebraic Effects**, meaning that "doing" something is separated from "interpreting" it.
 
-The definition of a Resource is done with the `resource` keyword. The left side must be a name, the right side a Table with the following keys:
+The definition of a Resource is done with the `@:` operator. The left side must be a name, the right side a Table with the following keys:
 
 - `next`: The step operator, a unary operator that is called when the resource is used.
 - `create`: The init operator, a unary operator that is called when the resource is created.
@@ -1519,7 +1519,7 @@ The `create` operator may be nullary, if default arguments are provided.
 > The `next` operator is the only one that is not optional. If it is not provided, the resource will not be able to be used.
 > The `create` operator is optional. If it is not provided, the resource will not be able to be used.
 > The `destroy` operator is optional. If it is not provided, the resource will not be cleaned up after use.
-> The resource keyword may be changed by `:@` operator in the future. This is just syntactic sugar.
+> The `@:` operator is the only way to define a resource. This is just syntactic sugar.
 
 #### Concept: Effect Reification
 
@@ -1548,7 +1548,7 @@ These are high-level abstractions built *using* the `@sys` primitive.
 
 ```rust
 # How stdout is implemented (conceptually)
-stdout : resource [
+stdout @: [
     next: { ["write" 1 right -1] @ sys }
 ];
 ```
@@ -1556,9 +1556,9 @@ stdout : resource [
 *Planned Primitives*:
 Future versions may introduce specialized primitives like `@file` or `@net` for better performance and type safety, reducing reliance on the generic `@sys`.
 
-#### The `resource` Operator
+#### The `@:` Operator
 
-You can define your own resources using the `resource` keyword. A resource definition is a Table that acts as a blueprint, specifying how to handle the lifecycle of the effect.
+You can define your own resources using the `@:` operator. A resource definition is a Table that acts as a blueprint, specifying how to handle the lifecycle of the effect.
 
 **Lifecycle Hooks**:
 
@@ -1570,7 +1570,7 @@ You can define your own resources using the `resource` keyword. A resource defin
 
 ```rust
 # A simple logger resource
-Logger : resource [
+Logger @: [
     next: {
         # 'right' is the data being pushed
         ["write" 1 ("LOG: $0\n" $ [right])] @ sys # Syscall to write to FD 1
@@ -1792,7 +1792,7 @@ Table       ::= "[" Expression* "]"
 Function    ::= (INTEGER)? "{" Expression "}" (INTEGER)?
 
 /* Resources */
-Resource    ::= "resource" Table
+Resource    ::= Expression "@:" Table
 
 /* Operators */
 Operator    ::= IDENTIFIER
