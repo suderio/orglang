@@ -31,3 +31,9 @@ pdf:
 
 view: pdf
     xdg-open "docs/Reference.pdf"
+
+# Generate test coverage report
+coverage:
+    go test -coverprofile=coverage.out -covermode=count ./...
+    go tool cover -html=coverage.out -o coverage.html
+    @echo "📊 Coverage report: coverage.html"

@@ -31,7 +31,7 @@ The entire idea of flux and resources is to present a model of **effect manageme
 | State | Stateless (closure captures only) | Stateful (`create` returns initial state) |
 | Side effects | Pure (no I/O) | Effectful (I/O via primitive resources) |
 | Lifecycle | Scope-based (Arena) | Explicit (`create`/`next`/`destroy`) |
-| Composition | `o` operator, `|>` partial app | Flux operators only (`->`, `-<`, `-<>`) |
+| Composition | `o` operator, `\|>` partial app | Flux operators only (`->`, `-<`, `-<>`) |
 
 > [!IMPORTANT]
 > Resources **cannot** be composed with `o`. The `@:` operator defines a resource; the flux operators (`->`, `-<`, `-<>`) are the only way to chain resources into pipelines. There may be use cases justifying an inheritance model (where only specific hooks of one resource definition are overridden), but this is **TBD**.
@@ -236,7 +236,7 @@ graph LR
 
 A Resource Definition is a Table with well-known keys. A Resource Instance is a runtime struct:
 
-```
+```rust
 OrgResourceDef:
     create:  *OrgValue   // pointer to create operator (nullable)
     next:    *OrgValue   // pointer to next operator (required)

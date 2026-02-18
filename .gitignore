@@ -4,6 +4,7 @@ bin/
 /orglang
 *.test
 *.out
+coverage.html
 vendor/
 
 # C / Build Artifacts
