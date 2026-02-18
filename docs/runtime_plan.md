@@ -65,7 +65,7 @@ typedef struct Arena {
 **API**:
 
 | Function | Purpose |
-|:---------|:--------|
+| :--- | :--- |
 | `arena_new(page_size)` | Create a new Arena |
 | `arena_alloc(arena, size, align)` | Bump-allocate; overflow → new page |
 | `arena_save(arena)` → `ArenaCheckpoint` | Save current position (for sub-scopes) |
@@ -209,7 +209,7 @@ Division may demote: exact Integer division stays Integer, inexact promotes to R
 ### 2.3 Coercion Rules
 
 | Source | Numeric Value |
-|:-------|:-------------|
+| :--- | :--- |
 | Boolean `true` | `1` |
 | Boolean `false` | `0` |
 | String | Length (codepoint count) |
@@ -248,7 +248,7 @@ typedef struct OrgTableEntry {
 Table values are stored as **thunks** (unevaluated closures). Access operators force evaluation:
 
 | Operator | Behavior |
-|:---------|:---------|
+| :--- | :--- |
 | `.` (Dot) | Retrieve value, force thunk if present |
 | `?` (Select) | Retrieve value, force thunk, apply |
 | `??` (Coalesce) | Return left if non-error, else right |
@@ -322,7 +322,7 @@ typedef struct OrgResourceInst {
 ### 5.3 Primitive Resources
 
 | Resource | Implementation |
-|:---------|:--------------|
+| :--- | :--- |
 | `@stdout` | `next`: `write(1, data, len)` |
 | `@stderr` | `next`: `write(2, data, len)` |
 | `@stdin` | `next`: `read(0, buf, len)` |
@@ -356,7 +356,7 @@ typedef struct OrgScheduler {
 
 ### 6.2 Execution Model
 
-```
+```shell
 org_main()
   ├── org_gmp_init()           // Set GMP allocator hooks
   ├── arena = arena_new()      // Global arena
@@ -413,7 +413,7 @@ The Go compiler walks the AST and emits C source code.
 ### 7.1 Emission Strategy
 
 | AST Node | Emitted C |
-|:---------|:----------|
+| :--- | :--- |
 | `IntegerLiteral "42"` | `ORG_TAG_SMALL(42)` or `org_make_bigint("42")` |
 | `DecimalLiteral "3.14"` | `org_make_decimal("314", "100", 2)` |
 | `RationalLiteral "1/2"` | `org_make_rational("1", "2")` |
@@ -471,7 +471,7 @@ int main(int argc, char **argv) {
 
 ## File Layout
 
-```
+```shell
 pkg/runtime/
 ├── core/
 │   ├── arena.h          # Arena API
@@ -499,7 +499,7 @@ pkg/runtime/
 ## Implementation Order
 
 | Phase | Files | Depends On | Deliverable |
-|:------|:------|:-----------|:------------|
+| :--- | :--- | :--- | :--- |
 | **1** | `arena.c`, `values.h` | Nothing | Can allocate memory and tag values |
 | **2** | `gmp_glue.c`, `ops.c` | Phase 1 | Can do `1 + 1` with arbitrary precision |
 | **3** | `table.c` | Phase 1 | Can create `[1 2 3]` and `[a: 1]` |
