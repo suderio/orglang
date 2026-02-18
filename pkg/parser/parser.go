@@ -14,6 +14,7 @@ type Parser struct {
 	l         *lexer.Lexer
 	curToken  token.Token
 	peekToken token.Token
+	prevToken token.Token // Track previous token for adjacency checks
 	errors    []string
 	bpTable   *BindingTable
 	inTable   bool
@@ -31,6 +32,7 @@ func New(l *lexer.Lexer) *Parser {
 }
 
 func (p *Parser) nextToken() {
+	p.prevToken = p.curToken
 	p.curToken = p.peekToken
 	p.peekToken = p.l.NextToken()
 }
@@ -265,7 +267,11 @@ func (p *Parser) registerBinding(name string, fl *ast.FunctionLiteral, isRes boo
 	}
 
 	if usesLeft && usesRight {
-		p.bpTable.RegisterInfix(name, lbp)
+		if fl.RBP != nil {
+			p.bpTable.RegisterCustomInfix(name, lbp, *fl.RBP)
+		} else {
+			p.bpTable.RegisterInfix(name, lbp)
+		}
 	} else if usesRight {
 		p.bpTable.RegisterPrefix(name, lbp)
 	} else {
@@ -390,9 +396,10 @@ func (p *Parser) parseFunctionLiteral(lbp *int) *ast.FunctionLiteral {
 	}
 
 	var rbp *int
-	if p.curToken.Type == token.INTEGER && p.areAdjacent(p.curToken, p.peekToken) {
-		// Adjacency check for RBP
-		// This implementation is still simplified.
+	if p.curToken.Type == token.INTEGER && p.areAdjacent(p.prevToken, p.curToken) {
+		val, _ := strconv.Atoi(p.curToken.Literal)
+		rbp = &val
+		p.nextToken()
 	}
 
 	return &ast.FunctionLiteral{LBP: lbp, Body: body, RBP: rbp}

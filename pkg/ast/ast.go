@@ -153,7 +153,7 @@ type PrefixExpr struct {
 }
 
 func (pe *PrefixExpr) String() string {
-	return fmt.Sprintf("(%s%s)", pe.Op, pe.Right.String())
+	return fmt.Sprintf("(%s %s)", pe.Op, pe.Right.String())
 }
 func (pe *PrefixExpr) expressionNode() {}
 func (pe *PrefixExpr) statementNode()  {}

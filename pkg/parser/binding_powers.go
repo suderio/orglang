@@ -66,7 +66,6 @@ func (bt *BindingTable) RegisterInfixRightAssoc(name string, lbp int) {
 	}
 }
 
-// RegisterValue registers a nullary value (neither prefix nor infix operator)
 func (bt *BindingTable) RegisterValue(name string) {
 	// Just a value, NUD returns Name(name)
 	bt.entries[name] = BindingEntry{
@@ -78,7 +77,6 @@ func (bt *BindingTable) RegisterValue(name string) {
 	}
 }
 
-// RegisterDual registers an operator that is both prefix and infix (like -)
 func (bt *BindingTable) RegisterDual(name string, prefixBP, infixLBP int) {
 	bt.entries[name] = BindingEntry{
 		LBP:      infixLBP,
@@ -89,7 +87,17 @@ func (bt *BindingTable) RegisterDual(name string, prefixBP, infixLBP int) {
 	}
 }
 
-// initDefaults populates the table with standard language operators
+// RegisterCustomInfix registers an operator with explicit LBP and RBP
+func (bt *BindingTable) RegisterCustomInfix(name string, lbp, rbp int) {
+	bt.entries[name] = BindingEntry{
+		LBP:      lbp,
+		RBP:      rbp,
+		PrefixBP: 0,
+		IsPrefix: false,
+		IsInfix:  true,
+	}
+}
+
 func (bt *BindingTable) initDefaults() {
 	// Infix Operators
 	bt.RegisterInfixRightAssoc("**", 500)
@@ -128,7 +136,12 @@ func (bt *BindingTable) initDefaults() {
 	bt.RegisterInfix("|>", 400)
 	bt.RegisterInfix("o", 400)
 	// Elvis
-	bt.RegisterInfix("?:", 750)
+	// Elvis - typically lower than arithmetic but higher than assignment
+	bt.RegisterInfix("?:", 125)
+	// Error Coalescing
+	bt.RegisterInfix("??", 125)
+	// Conditional (cond ? table)
+	bt.RegisterInfix("?", 100)
 	// Dot
 	bt.RegisterInfix(".", 800)
 

@@ -20,7 +20,7 @@ func TestParser(t *testing.T) {
 		{
 			name:     "Prefix Expression",
 			input:    "- 5;", // Space to ensure prefix operator, not negative number
-			expected: "(-5)",
+			expected: "(- 5)",
 		},
 		{
 			name:     "Negative Integer",
@@ -65,7 +65,7 @@ func TestParser(t *testing.T) {
 		{
 			name:     "Dynamic Binding Prefix",
 			input:    "sq : { right * right }; sq 5;",
-			expected: "(sq : { (right * right) })\n(sq5)",
+			expected: "(sq : { (right * right) })\n(sq 5)",
 		},
 		{
 			name:     "Dynamic Binding Infix",
@@ -85,7 +85,7 @@ func TestParser(t *testing.T) {
 		{
 			name:     "Pipe Operator Group",
 			input:    "ops:1; inc:1; 10 |> (ops.inc);",
-			expected: "(ops : 1)\n(inc : 1)\n(10 |> ((ops.inc)))", // group adds parens
+			expected: "(ops : 1)\n(inc : 1)\n(10 |> ((ops.inc)))",
 		},
 		{
 			name:     "Compose Operator",
@@ -120,12 +120,12 @@ func TestParser(t *testing.T) {
 		{
 			name:     "Resource Definition",
 			input:    "Log @: {};",
-			expected: "(Log @: {  })", // Empty body
+			expected: "(Log @: {  })",
 		},
 		{
 			name:     "Resource Instantiation",
 			input:    "Log @: {}; @Log;",
-			expected: "(Log @: {  })\n(@Log)",
+			expected: "(Log @: {  })\n(@ Log)",
 		},
 		{
 			name:     "Implicit Semicolon/lines",
