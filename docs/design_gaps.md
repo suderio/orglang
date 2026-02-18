@@ -124,8 +124,38 @@ To alleviate the overhead of dynamic typing and GMP allocations for simple opera
     * **Overflow**: Promote to GMP BigInt (allocate in Arena) and return Pointer.
   * **If false**: Fall back to full `mpz_t` arithmetic (promoting SmallInts to BigInts if needed).
 
-### 6.5 Implementation Roadmap
+### 6.5 Lazy Evaluation & Closures: The "Fat Pointer"
+
+To support **Lazy Evaluation** and lexical scoping (Closures), we need to represent functions not just as code, but as **Code + Environment**.
+
+* **Structure**: We will use a **Fat Pointer** approach, represented as a heap-allocated struct in the Arena.
+
+    ```c
+    typedef struct OrgClosure {
+        OrgFuncPtr function; // Pointer to generated C function
+        OrgValue env;        // Pointer to the Table (scope) where defined
+    } OrgClosure;
+    ```
+
+* **Invocation**: When the runtime invokes a closure, it extracts the `env` and passes it as a hidden first argument (`self` or `__env`).
+* **Environment**: Since every scope in OrgLang is a **Table**, the "environment" is simply a pointer to the Table object currently living in the Arena.
+
+#### Analysis
+
+* **Pros**:
+  * **Simplicity**: Standard C technique for closures.
+  * **Unified Model**: Since Scopes are Tables, we don't need a separate "Stack Frame" structure. Debugging tools can inspect closures just by printing the Table.
+  * **Arena-Friendly**: Closures are allocated in the Arena and reclaimed automatically.
+* **Cons**:
+  * **Indirection**: Requires double dereference (Value -> Closure -> Func/Env).
+  * **Allocations**: Every closure creation requires an Arena allocation (unlike function pointers which are immediate).
+* **Alternatives Considered**:
+  * *Trampolines*: Generating machine code at runtime (Too complex/unsafe).
+  * *Defunctionalization*: Transforming all closures into a giant switch statement (Requires whole-program analysis, breaks dynamic linking).
+
+### 6.6 Implementation Roadmap
 
 1. **`pkg/runtime/core`**: Implement `arena.c`, `values.c` (OrgValue tagged union).
 2. **`pkg/runtime/gmp`**: Implement GMP glue code.
 3. **`pkg/runtime/sched`**: Implement `fiber.c` and a single-threaded M:N scheduler loop.
+4. **`pkg/runtime/closure`**: Implement `closure.c` and environment logic.

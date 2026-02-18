@@ -152,13 +152,7 @@ func (bt *BindingTable) initDefaults() {
 	bt.RegisterPrefix("--", 900)
 	bt.RegisterPrefix("@", 900)
 
-	// Note: @ is also infix BP 800 or 900? Plan says:
-	// "900 @ Resource inst./infix Prefix/L" (Table)
-	// "Infix (LED): "path" @ org -> InfixExpr("path", @, org)."
-	// "Infix @: InfixExpr Infix at BP 800" (later section)
-	// Let's assume 800 for Infix to match Dot.
-	// But table says 900.
-	// Let's go with 800 for infix to distinguish from prefix 900? Or 900 for both.
-	// Let's use RegisterDual for @
-	bt.RegisterDual("@", 900, 800)
+	// @ is both prefix (resource instantiation) and infix (module loading).
+	// Both use BP 900 as per the parser plan.
+	bt.RegisterDual("@", 900, 900)
 }

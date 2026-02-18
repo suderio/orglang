@@ -173,6 +173,47 @@ func TestParser(t *testing.T) {
 			input:    `"Hello 世界 🌍" "こんにちは" "💩"`,
 			expected: "\"Hello 世界 🌍\"\n\"こんにちは\"\n\"💩\"",
 		},
+		// Pre-Runtime Fix Tests
+		{
+			name:     "Table Semicolons",
+			input:    "[1; 2; 3];",
+			expected: "[1 2 3]",
+		},
+		{
+			name:     "Table Mixed Semicolons and Spaces",
+			input:    "[1; 2 3; 4];",
+			expected: "[1 2 3 4]",
+		},
+		{
+			name:     "Not Equal ~=",
+			input:    "a:1; b:2; a ~= b;",
+			expected: "(a : 1)\n(b : 2)\n(a ~= b)",
+		},
+		{
+			name:     "Not Equal <> and ~= same precedence",
+			input:    "a:1; b:2; a <> b;",
+			expected: "(a : 1)\n(b : 2)\n(a <> b)",
+		},
+		{
+			name:     "Infix @ Module Loading",
+			input:    `lib:1; "path" @ lib;`,
+			expected: "(lib : 1)\n(\"path\" @ lib)",
+		},
+		{
+			name:     "Pipe with Docstring Atom",
+			input:    "fn:1; fn |> \"\"\"doc\"\"\";",
+			expected: "(fn : 1)\n(fn |> \"\"\"doc\"\"\")",
+		},
+		{
+			name:     "Pipe with Raw String Atom",
+			input:    "fn:1; fn |> 'raw';",
+			expected: "(fn : 1)\n(fn |> 'raw')",
+		},
+		{
+			name:     "Empty Table with Semicolons",
+			input:    "[; ; ;];",
+			expected: "[]",
+		},
 	}
 
 	for _, tt := range tests {

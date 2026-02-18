@@ -88,7 +88,7 @@ const (
 func (p *Parser) getBindingPower(t token.Token) int {
 	switch t.Type {
 	case token.DOT, token.AT:
-		return 800
+		return 900
 	case token.ELVIS:
 		return 750
 	case token.AT_COLON, token.COLON:
@@ -231,7 +231,7 @@ func (p *Parser) led(t token.Token, left ast.Expression) ast.Expression {
 		return &ast.InfixExpr{Left: left, Op: t.Literal, Right: right}
 
 	case token.AT:
-		bp := 800
+		bp := 900
 		right := p.parseExpression(bp)
 		return &ast.InfixExpr{Left: left, Op: "@", Right: right}
 	}
@@ -344,7 +344,7 @@ func (p *Parser) parseAtom() ast.Expression {
 	case token.IDENTIFIER:
 		p.nextToken()
 		return &ast.Name{Value: t.Literal}
-	case token.INTEGER, token.DECIMAL, token.RATIONAL, token.STRING, token.BOOLEAN:
+	case token.INTEGER, token.DECIMAL, token.RATIONAL, token.STRING, token.DOCSTRING, token.RAWSTRING, token.RAWDOC, token.BOOLEAN:
 		p.nextToken()
 		switch t.Type {
 		case token.INTEGER:
@@ -420,6 +420,10 @@ func (p *Parser) parseTableLiteral() *ast.TableLiteral {
 	defer func() { p.inTable = prevInTable }()
 
 	for p.curToken.Type != token.RBRACKET && p.curToken.Type != token.EOF {
+		if p.curToken.Type == token.SEMICOLON {
+			p.nextToken()
+			continue
+		}
 		expr := p.parseExpression(0)
 		if expr != nil {
 			elements = append(elements, expr)
