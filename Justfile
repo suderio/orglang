@@ -78,7 +78,7 @@ coverage-c:
     llvm-cov report build/coverage/test_* -instr-profile=build/coverage/merged.profdata
     llvm-cov show build/coverage/test_* -instr-profile=build/coverage/merged.profdata \
         --format=html -output-dir=build/coverage/html
-    @echo "📊 C coverage report: build/coverage/html/index.html"
+    echo "📊 C coverage report: build/coverage/html/index.html"
 
 # Run all tests (Go + C)
 test-all: test test-c
