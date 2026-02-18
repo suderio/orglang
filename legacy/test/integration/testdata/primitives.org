@@ -1,2 +1,0 @@
-("write", 1, "Hello from @sys!\n", 17) @ sys;
-10 @ mem;

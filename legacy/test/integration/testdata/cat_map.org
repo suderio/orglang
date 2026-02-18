@@ -1,2 +1,0 @@
-# Map test
-@stdin -> { right + "!" } -> @stdout;

@@ -8,10 +8,6 @@ clean:
 	find test/sanity test/integration/testdata -type f ! -name "*.*" -executable -delete 2>/dev/null || true
 	go clean
 
-# Run all tests (after cleaning)
-test: clean
-    go test ./...
-
 # Build snapshot release
 snapshot: clean
     goreleaser release --snapshot --clean
@@ -32,12 +28,6 @@ pdf:
 
 view: pdf
     xdg-open "docs/Reference.pdf"
-
-# Generate test coverage report
-coverage:
-    go test -coverprofile=coverage.out -covermode=count ./...
-    go tool cover -html=coverage.out -o coverage.html
-    @echo "📊 Coverage report: coverage.html"
 
 # Run C runtime unit tests
 test-c:
@@ -80,6 +70,16 @@ coverage-c:
         --format=html -output-dir=build/coverage/html
     echo "📊 C coverage report: build/coverage/html/index.html"
 
+# Run all tests (after cleaning)
+test-go: clean
+    go test ./...
+
+# Generate test coverage report
+coverage-go:
+    go test -coverprofile=build/coverage.out -covermode=count ./...
+    go tool cover -html=build/coverage.out -o build/coverage.html
+    @echo "📊 Coverage report: build/coverage.html"
+
 # Run all tests (Go + C)
-test-all: test test-c
+test-all: test-go test-c
 
