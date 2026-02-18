@@ -71,6 +71,8 @@ typedef struct OrgContext {
 ### Scheduler Loop
 
 ```c
+// This is just pseudocode to illustrate the idea.
+// The actual implementation will be different.
 void org_scheduler_run(OrgContext *ctx) {
     while (ctx->scheduler.ready_head) {
         // Pop Fiber
