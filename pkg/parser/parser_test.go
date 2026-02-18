@@ -18,6 +18,16 @@ func TestParser(t *testing.T) {
 			expected: "5",
 		},
 		{
+			name:     "Decimal Literal",
+			input:    "5.5;",
+			expected: "5.5",
+		},
+		{
+			name:     "Rational Literal",
+			input:    "5/2;",
+			expected: "5/2",
+		},
+		{
 			name:     "Prefix Expression",
 			input:    "- 5;", // Space to ensure prefix operator, not negative number
 			expected: "(- 5)",

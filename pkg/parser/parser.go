@@ -393,6 +393,8 @@ func (p *Parser) parseFunctionLiteral(lbp *int) *ast.FunctionLiteral {
 
 	if p.curToken.Type == token.RBRACE {
 		p.nextToken()
+	} else {
+		p.addError("expected '}'")
 	}
 
 	var rbp *int
@@ -426,6 +428,8 @@ func (p *Parser) parseTableLiteral() *ast.TableLiteral {
 
 	if p.curToken.Type == token.RBRACKET {
 		p.nextToken()
+	} else {
+		p.addError("expected ']'")
 	}
 
 	return &ast.TableLiteral{Elements: elements}
