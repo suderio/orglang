@@ -152,6 +152,27 @@ func TestParser(t *testing.T) {
 			input:    "true false",
 			expected: "true\nfalse",
 		},
+		// New Tests High Complexity
+		{
+			name:     "Really Big Integer",
+			input:    "1234567890123456789012345678901234567890;",
+			expected: "1234567890123456789012345678901234567890",
+		},
+		{
+			name:     "Really Big Decimal",
+			input:    "12345678901234567890.12345678901234567890;",
+			expected: "12345678901234567890.12345678901234567890",
+		},
+		{
+			name:     "Really Big Rational",
+			input:    "12345678901234567890/98765432109876543210;",
+			expected: "12345678901234567890/98765432109876543210",
+		},
+		{
+			name:     "Unicode Strings",
+			input:    `"Hello 世界 🌍" "こんにちは" "💩"`,
+			expected: "\"Hello 世界 🌍\"\n\"こんにちは\"\n\"💩\"",
+		},
 	}
 
 	for _, tt := range tests {
