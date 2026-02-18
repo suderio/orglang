@@ -18,6 +18,7 @@ vendor/
 *.exe
 /out/
 /dist/
+/build/
 
 # IDEs and OS
 .idea/

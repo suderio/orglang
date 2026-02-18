@@ -44,6 +44,10 @@ Summary of pending issues and feature enhancements discovered during sanity test
 
 ## Future Roadmap (Wishlist)
 
+- [ ] **Scheduler: Async IO** — `@stdout.next` currently calls `write()` synchronously. Replace with IO queue submission + fiber yield.
+- [ ] **Scheduler: Preemptive Yield** — Fibers currently run to completion. Add cooperative yield points and time-slice preemption.
+- [ ] **Scheduler: `io_uring`/`epoll`** — Integrate kernel-level async IO for non-blocking resource operations.
+- [ ] **Scheduler: Multi-Thread M:N** — Expand from single OS thread to one event loop per CPU core.
 - [ ] **Static Analysis**: Implement a compiler pass for early error detection (undefined variables, type hints).
 - [ ] **Pattern Matching**: Implement destructuring for table arguments in functions.
 - [ ] **Coroutines**: Add first-class support for suspended execution contexts.
