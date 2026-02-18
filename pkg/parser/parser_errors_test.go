@@ -36,7 +36,25 @@ func TestParser_Errors(t *testing.T) {
 			name:           "Undefined Identifier",
 			input:          "unknown_id",
 			expectedAST:    "<Error: undefined identifier: unknown_id>",
-			expectedErrors: nil, // ErrorExpr in AST, not in p.errors list (design choice?)
+			expectedErrors: nil,
+		},
+		{
+			name:           "Semicolons in Table",
+			input:          "[1; 2; 3]",
+			expectedAST:    "[1 2 3]",
+			expectedErrors: []string{"semicolons are not valid inside table literals", "semicolons are not valid inside table literals"},
+		},
+		{
+			name:           "Semicolons in Table Mixed",
+			input:          "[1; 2 3; 4]",
+			expectedAST:    "[1 2 3 4]",
+			expectedErrors: []string{"semicolons are not valid inside table literals", "semicolons are not valid inside table literals"},
+		},
+		{
+			name:           "Only Semicolons in Table",
+			input:          "[; ; ;]",
+			expectedAST:    "[]",
+			expectedErrors: []string{"semicolons are not valid inside table literals", "semicolons are not valid inside table literals", "semicolons are not valid inside table literals"},
 		},
 	}
 

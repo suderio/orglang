@@ -175,16 +175,6 @@ func TestParser(t *testing.T) {
 		},
 		// Pre-Runtime Fix Tests
 		{
-			name:     "Table Semicolons",
-			input:    "[1; 2; 3];",
-			expected: "[1 2 3]",
-		},
-		{
-			name:     "Table Mixed Semicolons and Spaces",
-			input:    "[1; 2 3; 4];",
-			expected: "[1 2 3 4]",
-		},
-		{
 			name:     "Not Equal ~=",
 			input:    "a:1; b:2; a ~= b;",
 			expected: "(a : 1)\n(b : 2)\n(a ~= b)",
@@ -208,11 +198,6 @@ func TestParser(t *testing.T) {
 			name:     "Pipe with Raw String Atom",
 			input:    "fn:1; fn |> 'raw';",
 			expected: "(fn : 1)\n(fn |> 'raw')",
-		},
-		{
-			name:     "Empty Table with Semicolons",
-			input:    "[; ; ;];",
-			expected: "[]",
 		},
 	}
 

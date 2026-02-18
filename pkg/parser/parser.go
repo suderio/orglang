@@ -421,6 +421,7 @@ func (p *Parser) parseTableLiteral() *ast.TableLiteral {
 
 	for p.curToken.Type != token.RBRACKET && p.curToken.Type != token.EOF {
 		if p.curToken.Type == token.SEMICOLON {
+			p.addError("semicolons are not valid inside table literals")
 			p.nextToken()
 			continue
 		}
