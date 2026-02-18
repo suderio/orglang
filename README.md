@@ -714,12 +714,9 @@ result : inc_and_double 5; # 12
 
 ##### The `|>` (partial application) operator
 
-The binary `|>` operator, also known as the **Left Injector**, performs **Partial Application**. It "anchors" a value into the `left` slot of an operator, returning a new unary operator.
+The binary `|>` operator, also known as the **Left Injector**, performs **Partial Application**. It "anchors" a value into the `left` slot of a binary operator, returning a new unary operator, or to the `right` slot of a unary operator, returning a nullary operator, a rarer use case, but valid.
 
-- **Right Operand Atom Rule**: The right operand **must be an Atom**. This means it must be a single identifier or a block `{...}`.
-  - `10 |> +` is valid because `+` is parsed as an atom (identifier).
-  - `10 |> + 5` is valid because `10 |> +` returns a function, which is then applied to `5`.
-  - `10 |> (+ 5)` is **invalid** because `(+ 5)` is not a valid atom group (it's a parenthesized identifier followed by a literal, which is a syntax error in a group).
+- **Right Operand Atom Rule**: The right operand **must be an Atom**. This means it must be a single identifier, a block `{...}`, or a parenthesized expression `(...)`. You cannot write `10 |> + 5`; instead write `10 |> (+ 5)`.
 
 - **Specialization**: It allows you to create specialized versions of binary operators by fixing one of the operands.
 

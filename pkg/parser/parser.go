@@ -219,44 +219,10 @@ func (p *Parser) led(t token.Token, left ast.Expression) ast.Expression {
 		return &ast.CommaExpr{Left: left, Right: right}
 	case token.IDENTIFIER:
 		if t.Literal == "|>" {
-			opExpr := &ast.InfixExpr{Left: left, Op: "|>", Right: p.parseAtom()}
-			// If the next token starts an expression, treating the result as a user-defined operator implies
-			// we should consume the argument with high precedence (like a prefix operator).
-			// We use 900 (same as prefix operators in binding_powers.go).
-			// We check if the next token has a NUD (is start of expression).
-			// However, parseExpression handles this check. But we only want to consume if LBP allows?
-			// No, prefix operators consume regardless of previous LBP context if they are in NUD position.
-			// Here we are in LED position of |>. We finished parsing |>.
-			// Now we are effectively in NUD position of the *result* of |>.
-			// So we blindly try to parse an expression?
-			// If we do, we might consume something that belongs to a higher level construct?
-			// E.g. `a |> b`. Next is `;` or `)`. `parseExpression(900)` will fail or return nil?
-			// parseExpression expects a NUD.
-			// So we check if current token can start an expression.
-			// Simple check: is it NOT a delimiter that ends an expression?
-			// Better: check if NUD is defined? But NUD logic is inside parseExpression.
-			// Let's iterate: if we can parse an expression with BP 900, we do.
-			// But parseExpression errors if no NUD.
-			// We can peek.
-			if p.isPossibleExpressionStart() {
-				// We must ensure we don't consume tokens that should bind weaker than 900?
-				// Actually, parseExpression(900) will stop if it hits an infix with LBP <= 900.
-				// But we need to know if we SHOULD start parsing.
-				// If next is `;`, parseExpression errors.
-				// If next is `)`, errors.
-				// So we need a check.
-				arg := p.parseExpression(900)
-				return &ast.ApplyExpr{Func: opExpr, Arg: arg}
-			}
-			return opExpr
+			return &ast.InfixExpr{Left: left, Op: "|>", Right: p.parseAtom()}
 		}
 		if t.Literal == "o" {
-			opExpr := &ast.InfixExpr{Left: left, Op: "o", Right: p.parseAtom()}
-			if p.isPossibleExpressionStart() {
-				arg := p.parseExpression(900)
-				return &ast.ApplyExpr{Func: opExpr, Arg: arg}
-			}
-			return opExpr
+			return &ast.InfixExpr{Left: left, Op: "o", Right: p.parseAtom()}
 		}
 
 		entry, _ := p.bpTable.Lookup(t.Literal)
@@ -476,19 +442,4 @@ func (p *Parser) parseTableLiteral() *ast.TableLiteral {
 
 func (p *Parser) areAdjacent(t1, t2 token.Token) bool {
 	return t1.Line == t2.Line && (t1.Column+len(t1.Literal) == t2.Column)
-}
-
-func (p *Parser) isPossibleExpressionStart() bool {
-	t := p.curToken.Type
-	if t == token.IDENTIFIER {
-		entry, ok := p.bpTable.Lookup(p.curToken.Literal)
-		if !ok {
-			return true // Unknown identifier -> Start of expression (variable)
-		}
-		return entry.IsPrefix // Must be prefix capable (e.g. prefix op or value)
-	}
-	return t == token.INTEGER || t == token.DECIMAL || t == token.RATIONAL ||
-		t == token.STRING || t == token.DOCSTRING || t == token.RAWSTRING || t == token.RAWDOC ||
-		t == token.BOOLEAN || t == token.LPAREN || t == token.LBRACE || t == token.LBRACKET ||
-		t == token.AT || t == token.AT_COLON // Resources
 }

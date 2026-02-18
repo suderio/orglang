@@ -115,21 +115,6 @@ func TestParser_Examples(t *testing.T) {
 			// RBP (601) > LBP (600) implies Left Associativity in this Pratt implementation.
 			expected: "(pow_op : 600{ (left ** right) }601)\n(res : ((2 pow_op 3) pow_op 2))",
 		},
-		{
-			name:  "Advanced - Atom Parsing Rules (|>, o)",
-			input: "f:{}; g:{}; h:{}; res1 : 10 |> + 5; res2 : 10 |> +; res3 : f o g o h;",
-			// 10 |> + 5. |> consumes + as atom.
-			// Next token 5 is integer -> isPossibleExpressionStart true.
-			// Consumes 5 with BP 900.
-			// Result: ApplyExpr{ Infix{|>, 10, +}, 5 }.
-			expected: "(f : {  })\n(g : {  })\n(h : {  })\n(res1 : ((10 |> +) 5))\n(res2 : (10 |> +))\n(res3 : ((f o g) o h))",
-		},
-		{
-			name: "Advanced - Atom Parsing Complex Fail Check",
-			// "10 |> + 5". Same as above.
-			input:    "res : 10 |> + 5;",
-			expected: "(res : ((10 |> +) 5))",
-		},
 	}
 
 	for _, tt := range tests {
