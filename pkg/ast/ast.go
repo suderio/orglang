@@ -255,6 +255,18 @@ func (ge *GroupExpr) statementNode()  {}
 // BlockExpr represents { ... } when used as an expression (same as FunctionLiteral but explicit naming if needed)
 // We treat { ... } as FunctionLiteral.
 
+// ApplyExpr represents a function application (e.g. (f g))
+type ApplyExpr struct {
+	Func Expression
+	Arg  Expression
+}
+
+func (ae *ApplyExpr) String() string {
+	return fmt.Sprintf("(%s %s)", ae.Func.String(), ae.Arg.String())
+}
+func (ae *ApplyExpr) expressionNode() {}
+func (ae *ApplyExpr) statementNode()  {}
+
 // ErrorExpr represents a parsing error or undefined identifier
 type ErrorExpr struct {
 	Message string

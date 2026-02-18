@@ -41,6 +41,7 @@ main: {@args -> "Hello, World!" -> @stdout ?? @stderr};
 Every interaction with the outside world is a resource. The builtin `args` resource is the entry point of an executable. The args resource pulls data from the command line arguments and environment variables. A more complex example would be:
 
 ```rust
+# TODO the Error operator here is probably wrong.
 main: {@args -> "Hello, $0!" |> $ -> @stdout ?? @stderr};
 ```
 
@@ -156,37 +157,41 @@ While not strictly required for these symbols, using whitespace is encouraged fo
 
 #### Identifiers
 
-Identifiers (also referred to as names) are used to name variables, functions, and resources. In OrgLang, identifiers have a very flexible structure, allowing many symbols that are typically reserved for operators in other languages.
+Identifiers (also referred to as names) are used to name variables, functions, and resources. In OrgLang, identifiers have a very flexible structure, allowing many symbols that are typically reserved for operators in other languages, as well as Unicode characters.
 
-An identifier must start with a letter (case-sensitive `a-z` or `A-Z`), an underscore (`_`), or any of the following symbols:
+An identifier must start with a letter (unicode category `L`), an underscore (`_`), a symbol (unicode category `S`), or a number (unicode category `N`, though see note below). It can also start with any of the ASCII operator symbols allowed in identifiers.
 
-- `!`, `$`, `%`, `&`, `*`, `-`, `+`, `=`, `^`, `~`, `?`, `/`, `<`, `>`, `|`
+Technically, an identifier can contain any Unicode character **except** those with the Unicode property `Punctuation` (P), and the specific structural delimiters listed below.
 
-After the first character, an identifier can contain any combination of letters, underscores, digits (`0-9`), and the symbols listed above.
+**Allowed ASCII Symbols in Identifiers:**
+`!`, `$`, `%`, `&`, `*`, `-`, `+`, `=`, `^`, `~`, `?`, `/`, `<`, `>`, `|`
 
-However, identifiers **cannot** contain the following structural delimiters:
+**Forbidden Characters:**
+Identifiers **cannot** contain the following structural delimiters or characters:
 
-- `@`, `:`, `.`, `,`, `;`, `(`, `)`, `[`, `]`, `{`, `}`
+- `@`, `:`, `.`, `,`, `;` (Structural operators)
+- `(`, `)`, `[`, `]`, `{`, `}` (Delimiters)
+- `"`, `'` (String delimiters)
+- `\` (Escape character)
+- `#` (Comment start)
+- Whitespace
 
 **Examples of valid identifiers:**
 
 - `variable_name`
-
 - `isValid?`
-
 - `++count`
-
-- `>>`
-
-- `my-module`
-
-- `$price`
+- `café` (Latin)
+- `π` (Greek)
+- `∑` (Math symbol)
+- `名前` (CJK)
+- `x²` (Superscript)
 
 **Restricted Names:**
 Identifiers that match any of the language's [Keywords](#keywords) are reserved and cannot be used as variable names.
 
 > [NOTE]
-> Since digits are allowed in identifiers but an identifier cannot *start* with a digit, the lexer can easily distinguish between numeric literals and names. For example, `42x` is not a valid identifier, but `x42` is.
+> Since OrgLang integer literals only use ASCII `0-9`, identifiers can start with other Unicode number characters (like `Ⅱ` or `½`) without ambiguity. However, an identifier cannot start with an ASCII digit `0-9`.
 
 #### Keywords
 
@@ -208,19 +213,36 @@ The following identifiers are reserved as keywords and have special meaning in t
 
 #### String literals
 
-In OrgLang, strings are sequences of characters used for text representation. They can be defined as single-line or multiline literals.
+In OrgLang, strings are sequences of **Unicode codepoints** used for text representation. They can be defined as double-quoted strings (with escape support) or single-quoted raw strings.
 
-##### Single-line Strings
+Strings in OrgLang are semantically **tables of Unicode codepoints**. Each element is one codepoint (not a byte, and not a grapheme cluster).
 
-Single-line strings are enclosed in double quotes (`"`). They must begin and end on the same line.
+##### Double-quoted Strings ("...")
+
+Double-quoted strings support **escape sequences** for special characters.
 
 ```rust
-message : "Hello, OrgLang!";
+message : "Hello, \"World\"!\n";
 ```
 
-##### Multiline Strings (DocStrings)
+**Supported Escape Sequences:**
 
-Multiline strings are enclosed in triple double quotes (`"""`). They can span multiple lines and are designed for large blocks of text or documentation.
+| Escape       | Meaning                        | Example               |
+| :----------- | :----------------------------- | :-------------------- |
+| `\n`         | Newline (LF, U+000A)           | `"line1\nline2"`      |
+| `\t`         | Tab (U+0009)                   | `"col1\tcol2"`        |
+| `\r`         | Carriage return (U+000D)       | `"text\r\n"`          |
+| `\\`         | Literal backslash              | `"path\\file"`        |
+| `\"`         | Literal double quote           | `"say \"hi\""`        |
+| `\0`         | Null (U+0000)                  | `"null\0byte"`        |
+| `\uXXXX`     | Unicode BMP codepoint (4 hex)  | `"\u00E9"` → `é`      |
+| `\u{XXXXXX}` | Unicode codepoint (1-6 hex)    | `"\u{1F389}"` → `🎉`  |
+
+Any other `\X` sequence is an error.
+
+##### Multiline DocStrings (`"""..."""`)
+
+Multiline strings are enclosed in triple double quotes (`"""`). They can span multiple lines and are designed for large blocks of text or documentation. They support the same escape sequences as double-quoted strings.
 
 To keep the source code clean, multiline strings automatically strip **common leading whitespace** (indentation) from all non-empty lines. The amount of whitespace removed is determined by the line with the least indentation.
 
@@ -236,13 +258,33 @@ doc : """
 > [NOTE]
 > Leading and trailing blank lines (usually surrounding the delimiters) are also stripped.
 
+##### Raw Strings ('...')
+
+Raw strings use **single quotes** (`'...'`) and have **no escape processing**. Every character between the quotes is literal. This is useful for regular expressions or Windows file paths.
+
+```rust
+path : 'C:\Users\file';           # Literal backslash, no escaping
+regex : '(\d+)\s+(\w+)';          # No need to double-escape
+```
+
+**Multiline Raw Strings (`'''...'''`)**
+
+For multiline raw strings, use triple single quotes (`'''...'''`). The same indentation stripping rules apply as with `"""..."""`.
+
+```rust
+raw_block : '''
+    This is raw.
+    \n is literal — not a newline.
+''';
+```
+
 ##### Strings as Tables
 
-A fundamental design choice in OrgLang is that **Strings are semantically Tables** (ordered lists of characters).
+A fundamental design choice in OrgLang is that **Strings are semantically Tables** (ordered lists of codepoints).
 
-- **Indexing**: A string can be indexed by integers starting at `0`. Accessing `s.0` returns the first character.
+- **Indexing**: A string can be indexed by integers starting at `0`. Accessing `s.0` returns the first codepoint.
 
-- **Table Properties**: Because they are tables, operators like `->` for iteration treat strings as a stream of characters.
+- **Table Properties**: Because they are tables, operators like `->` for iteration treat strings as a stream of codepoints.
 
 ##### String Length and Orthogonality
 
@@ -259,6 +301,22 @@ res : s1 + s2; # res is 5 (3 + 2)
 ```
 
 To join strings, use interpolation or specialized table operations (to be defined in the standard library).
+
+##### String Interpolation (`$`)
+
+OrgLang supports string interpolation using the `$` operator.
+
+- **Syntax**: `$` is a prefix operator that applies to the string immediately to its right.
+- **Substitution**: It replaces `$0`, `$1`, ... `$N` placeholders in the string with values taken from the **Table** on the left.
+- **Variable Names**: It also supports `$var_name` to lookup named keys in the table.
+
+```rust
+message : ["World" 42] |> $ "Hello, $0! The answer is $1.";
+# Result: "Hello, World! The answer is 42."
+```
+
+> [NOTE]
+> `$` is technically a binary operator where the left operand is the **Context Table** and the right operand is the **Template String**. When used in a pipeline like `table |> $ "template"`, the `|>` injects the table into the left side of `$`.
 
 #### Numeric literals
 
@@ -293,6 +351,8 @@ Decimal literals represent non-integer numbers using a fixed decimal point notat
 A decimal literal consists of an integer part and a fractional part separated by a dot (`.`).
 
 - **Digits on both sides**: For an unsigned number starting with a digit, there must be at least one digit on both sides of the dot (e.g., `3.14`).
+
+- **Negative Decimals**: Like integers, decimals can be signed. `-0.5` is a valid Decimal literal.
 
 - **Lexical Distinction**: A number followed by a dot without a subsequent digit (e.g., `1.`) is lexically interpreted as an [Integer literal](#integer-literals) followed by the [Dot operator](#operators).
 
@@ -606,7 +666,7 @@ op : 50{ ... }60;
 
 When an operator is called, the expression within the braces is evaluated. The operands are made available via `left` and `right`.
 
-- **`left`**: The left operand (for binary operators). For unary (prefix) operators, this is typically `Error` or `NULL`.
+- **`left`**: The left operand (for binary operators). For unary (prefix) operators, this is typically `Error`.
 - **`right`**: The right operand (for binary operators) or the single operand (for unary operators).
 - **`this`**: A reference to the operator function itself (useful for recursion).
 
@@ -626,6 +686,8 @@ OrgLang provides higher-order operators that allow for the functional constructi
 The binary `o` operator performs **Functional Composition**. it merges two operators into a single, unified transformation.
 
 - **Sequence**: In the expression `h : g o f`, the output of the right operator (`f`) becomes the input of the left operator (`g`).
+
+- **Right Operand Atom Rule**: Like `|>` (below), `o` parses its right operand as a single **Atom** (identifier, block, or parenthesized expression). Complex expressions must be parenthesized. (TODO: This is actually something we should test in the parser)
 
 - **Optimization**: The runtime attempts to fuse these operations into a single execution step to minimize intermediate overhead.
 
@@ -654,14 +716,21 @@ result : inc_and_double 5; # 12
 
 The binary `|>` operator, also known as the **Left Injector**, performs **Partial Application**. It "anchors" a value into the `left` slot of an operator, returning a new unary operator.
 
+- **Right Operand Atom Rule**: The right operand **must be an Atom**. This means it must be a single identifier or a block `{...}`.
+  - `10 |> +` is valid because `+` is parsed as an atom (identifier).
+  - `10 |> + 5` is valid because `10 |> +` returns a function, which is then applied to `5`.
+  - `10 |> (+ 5)` is **invalid** because `(+ 5)` is not a valid atom group (it's a parenthesized identifier followed by a literal, which is a syntax error in a group).
+
 - **Specialization**: It allows you to create specialized versions of binary operators by fixing one of the operands.
 
 - **Left Binding**: The value on the left of `|>` is bound to the `left` parameter of the operator on the right.
 
 ```rust
 # Create a specialized 'add 10' function
-add_ten : 10 |> +;
+isOdd: 2 |> {right % left = 0};
+isEven: 2 |> ({right = 1} o {right % left});
 
+add_ten : 10 |> +;
 result : add_ten 5; # 15
 ```
 
@@ -864,7 +933,7 @@ Arithmetic expressions in OrgLang are designed to be highly predictable and perm
 
 When an arithmetic operator is applied to a non-numeric type, it is automatically coerced into a Number before the operation is performed:
 
-- **Tables and Strings**: Coerced to their **size** (the number of elements or characters).
+- **Tables and Strings**: Coerced to their **size** (the number of elements or codepoints).
 
 - **Booleans**: Coerced to `1` for `true` and `0` for `false`.
 
@@ -906,7 +975,7 @@ OrgLang uses whitespace (spaces, tabs, newlines) to separate tokens. The rules f
 
 - **Mandatory Spaces**: Space is required to separate two atoms that would otherwise merge into a single identifier (e.g., `x y` is two names, `xy` is one).
 
-- **Optional Spaces**: Spaces are optional around delimiters (`( )`, `[ ]`, `{ }`, `,`, `;`) and structural operators (`.`, `:`, `@`, `->`). For example, `(1+1)` is equivalent to `(1 + 1)`.
+- **Optional Spaces**: Spaces are optional around delimiters (`( )`, `[ ]`, `{ }`, `,`, `;`) and structural operators (`.`, `:`, `@`). For example, `(1 + 1)` is equivalent to `( 1 + 1 )`.
 
 - **Forbidden Spaces**:
   - **Signed Numbers**: There must be **no space** between a leading sign and the digits for it to be parsed as a negative or positive number atom (e.g., `-1` is a Number, `- 1` is the unary negation operator applied to `1`).
@@ -932,7 +1001,7 @@ Literals are atoms that represent fixed values.
 Numbers are represented in three subtypes:
 
 - **Integers**: Sequences of digits, optionally preceded by a sign (`42`, `-10`).
-- **Decimals**: Digits containing a decimal point (`3.14`, `-.5`).
+- **Decimals**: Digits containing a decimal point (`3.14`, `-0.5`).
 - **Rationals**: Represented as a ratio of two integers (`2/3`).
 
 ##### Booleans
@@ -947,7 +1016,7 @@ Strings are represented by text enclosed in double quotes:
 
 - **Multiline**: `"""Triple quotes for multiline text"""`.
 
-Strings are semantically **Tables** where each character is a value indexed by its position.
+Strings are semantically **Tables** where each codepoint is a value indexed by its position.
 
 #### Atoms in Tables
 
@@ -986,7 +1055,7 @@ The atomic model of OrgLang provides a unique balance of simplicity and expressi
 
 - **Limitation: Lexical Sensitivity**: The reliance on space as an element separator in Tables means developers must be mindful of grouping when mixing spaces and operators.
 
-- **Limitation: Precedence Quirks**: Some operators, like unary negation, have lower precedence than exponentiation (`-1**2 = -1`), which preserves mathematical convention but may surprise users coming from languages where unary operators are always highest.
+- **Limitation: Precedence Quirks**: Some operators, like unary negation, have lower precedence than exponentiation (`- 1**2 = -1`), which preserves mathematical convention but may surprise users coming from languages where unary operators are always highest. Note that `-1**2` (without space) parses as `(-1)**2 = 1` because `-1` is a single integer token.
 
 ### Unary arithmetic and bitwise operations
 
@@ -1000,7 +1069,7 @@ The unary negation operator reverses the sign of a numeric value.
 
 - **Decimals**: Returns a Decimal with the sign reversed.
 
-- **Precedence Note**: Unary negation has **lower precedence** than exponentiation. This means `-1**2` is evaluated as `-(1**2)`, resulting in `-1`, which aligns with standard mathematical notation.
+- **Precedence Note**: Unary negation has **lower precedence** than exponentiation. This means `- 1**2` is evaluated as `-(1**2)`, resulting in `-1`. However, be careful with whitespace: `-1**2` (no space) is lexed as the signed integer literal `-1` raised to the power of 2, resulting in `1`.
 
 #### Increment and Decrement (`++`, `--`)
 
@@ -1054,7 +1123,7 @@ Binary arithmetic operations in OrgLang are designed to be permissive and mathem
 
 The exponentiation operator raises the left operand to the power of the right operand.
 
-- **Precedence**: Higher than unary negation. Thus, `-1**2` is parsed as `-(1**2)` resulting in `-1`.
+- **Precedence**: Higher than unary negation. Thus, `- 1**2` (space) is parsed as `-(1**2)` resulting in `-1`. But `-1**2` (no space) is `(-1)**2` resulting in `1` due to the signed integer literal rule.
 
 - **Promotion**: Often results in a **Decimal** if the power is fractional or negative, unless the result can be exactly represented as an Integer or Rational.
 
@@ -1593,7 +1662,7 @@ main: {"Hello" -> @Logger} # Push data to it
 
 In this simple example, the `Logger` resource is instantiated and the string `"Hello"` is pushed to it. The `next` operator is called with `right` being `"Hello"`. The `next` operator then calls the `write` syscall with `1` as the file descriptor and `"LOG: Hello\n"` as the data. The Logger resource is then destroyed since the source (the "Hello" string) is consumed.
 
-The strange output is due to Strings being Tables, so every character is sent to the resource one by one. To achieve what is most likely intended, we should send the string inside a Table.
+The strange output is due to Strings being Tables, so every codepoint is sent to the resource one by one. To achieve what is most likely intended, we should send the string inside a Table.
 
 ```rust
 main: {["Hello"] -> @Logger}

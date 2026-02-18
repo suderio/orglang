@@ -62,17 +62,6 @@ Summary of pending issues and feature enhancements discovered during sanity test
 
 ## Technical Debt
 
-- [ ] Refactor `sanity_test.go` to handle large outputs more gracefully and avoid potential deadlocks in its own pipe-to-stdout logic.
 - [ ] Improved error reporting in the C runtime (more descriptive signals than just "FAIL").
 - [ ] Review mutated state in `,` operator (Persistence vs Mutation).
-- [ ] **Documentation: `->` listed as structural operator** (README.md line ~911). The `->` operator is composed entirely of identifier characters (`-`, `>`) and is NOT a structural operator. Remove it from the "Optional Spaces" list of structural operators.
-- [ ] **Documentation: Negation precedence description**. README states `-1**2` is `-(1**2) = -1`, but since `-1` is a signed numeric literal (one token) at the lexer level, `-1**2` actually parses as `(-1)**2 = 1`. The documentation should clarify this distinction between the signed literal `-1` and the prefix operator `- 1`.
-- [ ] **Documentation: String escape sequences missing** (README.md §String literals). Strings have no documented escape mechanism — no `\n`, `\t`, `\"`, or Unicode escapes. Add escape sequence table per `docs/utf8_support.md`.
-- [ ] **Documentation: Raw strings not documented** (README.md §String literals). Single-quote `'...'` and triple `'''...'''` raw strings are not yet described in the README. Add section per `docs/utf8_support.md`.
-- [ ] **Documentation: Unicode identifiers not documented** (README.md §Identifiers). Identifier spec currently says ASCII `a-z`/`A-Z` only. Update to reflect that Unicode letters are allowed (editor-dependent, no special syntax).
 - [ ] **Documentation: EBNF grammar outdated** (README.md §Full Grammar). The EBNF does not cover: raw strings (`RAWSTRING`), escape sequences in `STRING`, Unicode identifiers, `\` and `'` as structural/delimiter characters.
-- [ ] **Documentation: `-.5` decimal example conflicts with lexer** (README.md line ~935). The Atoms section lists `-.5` as a valid Decimal, but `.` is a structural character that breaks tokens — so `-.5` would lex as `IDENTIFIER(-)` `DOT` `INTEGER(5)`. Clarify or remove this example.
-- [ ] **Documentation: `$` interpolation syntax unspecified** (README.md §String Enhancements). The README mentions `$N` and `$var` interpolation but does not specify the escaping and delimiter rules. Document how `$` interacts with `\` escapes and whether it works in raw strings.
-- [ ] **Documentation: `\` and `'` missing from forbidden-in-identifiers list** (README.md line ~169). The list of characters forbidden in identifiers does not include `\` (escape) or `'` (raw string delimiter), both newly structural.
-- [ ] **Documentation: "character" should be "codepoint"** (README.md, 7 locations). The README uses the ambiguous term "character" when describing strings-as-tables. Replace with "Unicode codepoint" per `docs/utf8_support.md`. Affected lines: ~211, ~241, ~243, ~245, ~867, ~950, ~1596.
-- [ ] **Documentation: `|>` and `o` right operand semantics** (README.md §Operators on operators, lines ~620–665). The README describes `|>` as taking "an operator on the right" but doesn't specify the atom-mode parsing rule: bare identifier, block, or parenthesized expression. Add examples of all three shapes and document the mandatory-parenthesization rule for complex RHS. Also update examples at ~44 (`"Hello, $0!" |> $`), ~663 (`10 |> +`), ~812 (`2 |> power_of`) to note the parseAtom() semantics.
