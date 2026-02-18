@@ -15,8 +15,12 @@ Resources are OrgLang's mechanism for **effect reification** — they turn side 
 This separation means:
 
 - Resources are deterministic — their lifecycle is scoped and predictable.
-- Resources are composable — they can be chained with flux operators.
+- Resources are composable — they can be **chained** with flux operators (not composed with `o`).
 - Resources are testable — you can substitute a mock resource with the same interface.
+
+### Design Philosophy: Simplicity Through Composition
+
+The entire idea of flux and resources is to present a model of **effect management without complexity**. Rather than building blocking, buffering, and backpressure into the core resource model, these concerns are themselves modeled as resources that are added to the flux chain. This keeps the core model minimal and orthogonal.
 
 ### Resources vs Functions
 
@@ -25,8 +29,12 @@ This separation means:
 | Defined with | `name : { body }` | `Name @: [hooks]` |
 | Invoked with | `name(arg)` or `arg -> name` | `@Name` (instantiation) |
 | State | Stateless (closure captures only) | Stateful (`create` returns initial state) |
-| Side effects | Pure (no I/O) | Effectful (I/O via `@sys` or similar) |
+| Side effects | Pure (no I/O) | Effectful (I/O via primitive resources) |
 | Lifecycle | Scope-based (Arena) | Explicit (`create`/`next`/`destroy`) |
+| Composition | `o` operator, `|>` partial app | Flux operators only (`->`, `-<`, `-<>`) |
+
+> [!IMPORTANT]
+> Resources **cannot** be composed with `o`. The `@:` operator defines a resource; the flux operators (`->`, `-<`, `-<>`) are the only way to chain resources into pipelines. There may be use cases justifying an inheritance model (where only specific hooks of one resource definition are overridden), but this is **TBD**.
 
 ## 2. How Resources Work
 
@@ -37,7 +45,7 @@ A resource is defined using the `@:` operator. The left side is a name, the righ
 ```rust
 Logger @: [
     create:  { ... }    # Optional — called on instantiation
-    next:    { ... }    # Required — called on each data push/pull
+    next:    { ... }    # Required — called on each data interaction
     destroy: { ... }    # Optional — called on teardown
 ];
 ```
@@ -46,14 +54,14 @@ Logger @: [
 
 | Hook | Arity | When Called | Purpose |
 | :--- | :--- | :--- | :--- |
-| `create` | Unary or nullary | On `@Name` instantiation | Initialize state (open file, allocate buffer). Returns initial state. |
-| `next` | Unary | On each `->` push or pull | Process one unit of data. `right` is the incoming data. |
-| `destroy` | Nullary | On scope exit or flow completion | Cleanup (close file descriptor, flush buffer). |
+| `create` | Unary or nullary | **Before** the operator body executes | Initialize state (open file, allocate buffer). Returns initial state. |
+| `next` | Unary | On each data interaction in the flow | Process one unit of data. `right` is the incoming data. |
+| `destroy` | Nullary | **After** the operator body finishes | Cleanup (close file descriptor, flush buffer). |
 
 > [!NOTE]
 > Only `next` is strictly required. A resource with no `create` starts with no initial state. A resource with no `destroy` has no cleanup — it relies on the Arena for memory reclamation.
 
-### 2.2 Instantiation (`@`)
+### 2.2 Instantiation (`@`) and Lifecycle Scoping
 
 The prefix `@` operator creates a live Resource Instance:
 
@@ -63,21 +71,61 @@ main: {
 }
 ```
 
-1. `@stdout` triggers `stdout.create()` (if defined), producing an instance with initial state.
-2. The instance is now ready to receive or produce data via `next`.
-3. When the enclosing scope exits, `stdout.destroy()` is called (if defined).
+**Lifecycle scoping**: The `@` operator must be used inside an operator body `{ ... }`. This is because **all `create` hooks of all instantiated resources are called before the operator body executes**, and **all `destroy` hooks are called after the body finishes**:
 
-> [!IMPORTANT]
-> `@` must be used inside an operator body `{ ... }`. This is because resource instantiation ties the instance's lifetime to the enclosing scope's Arena.
+```rust
+myOp: {
+    # Before body: stdout.create() is called (if defined)
+    # Before body: Logger.create() is called (if defined)
 
-### 2.3 Data Direction: Push vs Pull
+    "Hello" -> @stdout;
+    "World" -> @Logger;
 
-A resource's `next` hook serves both directions:
+    # After body: Logger.destroy() is called (reverse order)
+    # After body: stdout.destroy() is called
+}
+```
 
-- **Sink** (data pushed into it): `"data" -> @stdout` — `next` receives `right = "data"`.
-- **Source** (data pulled from it): `@stdin -> transform` — `next` is called repeatedly; each call returns one datum.
+This is why `@` cannot appear at the top level — there is no enclosing operator to define the lifecycle boundary.
 
-The direction is determined by the resource's position relative to `->`, not by the resource definition itself. The same resource can be used as both source and sink if its `next` hook handles both cases.
+### 2.3 Data Model: Pull-Based with Ready Signals
+
+OrgLang's resource model is fundamentally **pull-based**. Only pulled data exists:
+
+1. **Sinks signal readiness**: A sink sends a signal that it is available to receive data (potentially via a `ready` hook — TBD).
+2. **Sources respond**: When a sink is ready, the source produces and sends the next datum.
+3. **No unsolicited push**: Data is never produced unless a downstream consumer has signaled it can accept it.
+
+This pull-based model ensures:
+
+- No unbounded buffering — data only exists when a consumer is ready.
+- Natural backpressure — a slow sink automatically throttles the source.
+- Deterministic memory usage — the Arena can be sized for one "pulse" of data at a time.
+
+> [!NOTE]
+> The exact mechanism for readiness signaling (e.g., a `ready` hook on the resource definition) is **TBD**. The current implementation uses a simpler model where `next` is called in a loop, but the design intent is pull-based.
+
+### 2.4 Non-Resource Sources
+
+If the source is not a resource (e.g., a Table or a literal value), the workflow is the same, albeit simpler:
+
+```rust
+# Table as source — each element is a datum
+[1 2 3] -> { right * 2 } -> @stdout
+
+# String as source — each codepoint is a datum
+"Hello" -> @Logger
+```
+
+A non-resource source does not have `create`/`destroy` hooks or state — it simply yields its elements one at a time into the flow.
+
+### 2.5 Source vs Sink vs Transformer
+
+The distinction between sources, sinks, and whether a resource can be a **transformer** (both source and sink) is **TBD**. Currently:
+
+- **Source**: appears on the left of `->` — produces data via `next`.
+- **Sink**: appears on the right of `->` — consumes data via `next`.
+- **Transformer**: a resource that appears in the middle of a chain, consuming from one side and producing to the other. Whether this requires a dedicated hook or is handled by `next` alone is an open question.
 
 ## 3. Interaction with Flux Operators
 
@@ -91,9 +139,10 @@ source -> sink
 
 **Semantics**:
 
-1. Evaluate `source` — if it's a resource, call `next` to pull one datum.
-2. Pass the datum to `sink` — if it's a resource, call `next` with the datum.
-3. Repeat until `source` is exhausted (returns Error or empty).
+1. The sink signals readiness.
+2. The source responds by producing one datum (via `next` if resource, or yielding next element if Table/String).
+3. The datum is passed to the sink's `next`.
+4. Repeat until the source is exhausted (returns Error or empty).
 
 **Chaining**: Flows compose left-to-right.
 
@@ -148,7 +197,21 @@ Synchronized fan-in: merges multiple sources into coordinated packets.
 3. Send the combined Table as one "pulse" to the right-side sink.
 4. Repeat until any source is exhausted.
 
-### 3.4 Operator Interaction Summary
+### 3.4 Effect Management Through Flux
+
+Blocking, buffering, backpressure, and other flow-control concerns are **not** built into the core resource model. Instead, they are modeled as resources added to the flux chain:
+
+```rust
+# Buffering: a Buffer resource sits between source and sink
+@stdin -> @buffer(1024) -> @processor -> @stdout
+
+# Rate limiting: a Throttle resource controls throughput
+@events -> @throttle(100) -> @handler
+```
+
+This keeps the core model minimal — `->`, `-<`, and `-<>` are the only primitives. Everything else is a resource.
+
+### 3.5 Flow Diagram
 
 ```mermaid
 graph LR
@@ -185,9 +248,9 @@ OrgResourceInst:
     arena:   *OrgArena        // owning Arena for lifetime tracking
 ```
 
-### 4.2 The `@sys` Primitive
+### 4.2 The `@sys` Primitive Resource
 
-`@sys` is the single low-level bridge to C system calls. It is **not** a resource — it is a runtime primitive that takes a command list:
+`@sys` is a **primitive resource** — the foundational resource upon which all other resources are built. It is the sole bridge between OrgLang and the operating system:
 
 ```rust
 ["write" 1 "Hello" -1] @ sys   # write(fd=1, buf="Hello", len=-1 means auto)
@@ -203,17 +266,22 @@ stdout @: [
 ```
 
 > [!NOTE]
-> `@sys` is a temporary design. Future versions may replace it with specialized primitives (`@file`, `@net`, `@timer`) for better type safety and performance.
+> The design intent is that **all** OS interaction (file access, sockets, random number generation, etc.) is done through resources, and ultimately through a small set of **primitive resources**. Whether `@sys` remains the single primitive or is split into specialized primitives (`@file`, `@net`, `@timer`) is **TBD**.
 
-### 4.3 Scoped Lifetime and Arena Integration
+### 4.3 Arena as a Resource
 
-Resource instances are tied to the Arena of their enclosing scope:
+The Arena memory model is itself a resource:
 
-1. **Instantiation**: `@Name` allocates the instance in the current Arena and registers `destroy` in the Arena's **Teardown Registry**.
-2. **Usage**: `next` calls happen within the flow's execution context.
-3. **Teardown**: When the Arena is freed (scope exit, flow completion), the Teardown Registry is walked in **reverse creation order**, calling `destroy` on each registered resource.
+- **Default Arena**: A default Arena is always created for every operator invocation. It is instantiated before the body executes and destroyed after.
+- **Custom Arenas**: User-defined arenas (like `@arena`) follow the same lifecycle — `create` before the body, `destroy` after. Resources instantiated "downstream" of an arena are tracked by it.
+- **Customization**: The mechanism for user customization of the default Arena (e.g., setting initial page size, growth strategy) is **TBD**.
 
-This provides RAII-like deterministic cleanup without garbage collection.
+```rust
+# Arena middleware — manages memory for downstream resources
+"data.txt" -> @file_reader -> @arena -> @process -> @stdout
+```
+
+When the flow completes, `@arena` tears down all tracked resources in reverse creation order, then releases its pages.
 
 ### 4.4 Scheduler Integration
 
@@ -236,7 +304,8 @@ These questions will be addressed after the parser is implemented:
 
 - [ ] **Resource state mutation**: How does `next` update state between calls? Does `create` return a mutable cell, or is state threaded through return values?
 - [ ] **Error propagation in flows**: When `next` returns an Error, does it terminate the entire flow or just skip the datum?
-- [ ] **Bidirectional resources**: Can a single resource be both source and sink in the same flow? How does `next` distinguish direction?
-- [ ] **Resource composition**: Can resources be composed with `o`? E.g., `Logger o Formatter` — compose two resource definitions?
-- [ ] **`@sys` replacement**: What specialized primitives will replace `@sys`? What is the minimal set?
-- [ ] **Backpressure**: How does `-<` handle a slow sink? Does the source block, buffer, or drop?
+- [ ] **Sink/Source/Transformer identification**: How does the runtime distinguish direction? Is a `ready` hook needed? Can one resource be both source and sink?
+- [ ] **Resource inheritance**: Should there be a way to override only specific hooks of an existing resource definition?
+- [ ] **Primitive resource set**: What is the minimal set of primitive resources needed? Is `@sys` alone sufficient, or should it be split?
+- [ ] **Arena customization**: How can users configure the default Arena (page size, growth strategy)?
+- [ ] **Readiness signaling**: Exact mechanism for the pull-based `ready` signal.
