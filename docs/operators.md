@@ -20,13 +20,15 @@ The following operators have restrictions on the types they accept for their ope
 | Operator | Left Operand | Right Operand | Description / Restrictions |
 | :--- | :--- | :--- | :--- |
 | `$` | String (Table) | Table | String interpolation. Rejects Number/Boolean on both sides. |
-| `.` | Table | Number or Table | Access. Rejects Number/Boolean on Left. Rejects Boolean on Right. |
-| `?` | *Any* (Boolean) | Table | Selection. Rejects Number/Boolean on Right. |
-| `->` | *Any* | Resource / Operator | Push. Rejects Number/Boolean/Table on Right (unless as pulses). |
-| `-<` | *Any* | Table | Dispatch. Rejects Number/Boolean on Right. |
-| `-<>` | Table | Resource / Operator | Join. Rejects Number/Boolean on Left. Rejects Number/Boolean/Table on Right. |
-| `@` | (Unary Prefix) | Name or Literal | Instantiation. Rejects Table/Boolean (unless as resource spec). |
+| `.` | Table | Number, String or Name | Access. Rejects Number/Boolean on Left. |
+| `?` | *Any* | Table | Selection. Rejects Number/Boolean on Right. |
+| `->` | *Any* | Resource / Operator / Table of Operators | Push. Rejects Number/Boolean/Table (unless only operators) on Right. |
+| `-<` | *Any* | Resource / Operator / Table of Operators | Dispatch. Rejects Number/Boolean on Right. Rejects Number/Boolean/Table (unless only operators) on Right. |
+| `-<>` | *Any* | Resource / Operator / Table of Operators | Join. Rejects Number/Boolean on Left. Rejects Number/Boolean/Table (unless only operators) on Right. |
+| `@` | Table or Nothing (Unary) | Resource | Instantiation. Rejects Table/Boolean (unless as resource spec). |
 | `@:` | Name | Table | Resource Definition. Rejects Number/Boolean on Right. |
+| `o` | Operator | Operator | Operator Composition. Rejects anything but operators on both sides. |
+| `\|>` | *Any* | Operator | Partial Application. Rejects anything but operators on the Right. |
 
 ## Orthogonal Operators (Omitted)
 

@@ -48,7 +48,7 @@ func (bt *BindingTable) RegisterInfix(name string, lbp int) {
 	// Default left-associative: RBP = LBP
 	bt.entries[name] = BindingEntry{
 		LBP:      lbp,
-		RBP:      lbp,
+		RBP:      lbp + 1,
 		PrefixBP: 0,
 		IsPrefix: false,
 		IsInfix:  true,
