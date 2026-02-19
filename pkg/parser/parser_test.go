@@ -199,6 +199,203 @@ func TestParser(t *testing.T) {
 			input:    "fn:1; fn |> 'raw';",
 			expected: "(fn : 1)\n(fn |> 'raw')",
 		},
+		// Short circuit tests
+		{
+			name:     "Short Circuit AND",
+			input:    "true && false",
+			expected: "(true && false)",
+		},
+		{
+			name:     "Short Circuit OR",
+			input:    "true || false",
+			expected: "(true || false)",
+		},
+		{
+			name:     "Short Circuit Precedence (AND higher than OR)",
+			input:    "true && false || 1", // (true && false) || 1
+			expected: "((true && false) || 1)",
+		},
+		{
+			name:     "Short Circuit Precedence (OR lower than AND)",
+			input:    "true || false && 1", // true || (false && 1)
+			expected: "(true || (false && 1))",
+		},
+		{
+			name:     "Short Circuit vs Equality",
+			input:    "true = false && 1", // (true = false) && 1 falseecause = is 150, && is 140
+			expected: "((true = false) && 1)",
+		},
+		{
+			name:     "Short Circuit vs Comparison",
+			input:    "true < false || 1 > []", // (true < false) || (1 > []). < > are 150, || is 130
+			expected: "((true < false) || (1 > []))",
+		},
+		// Extended Assignments
+		{
+			name:     "Extended Assignment - Addition",
+			input:    "count :+ 1;",
+			expected: "(count :+ 1)",
+		},
+		{
+			name:     "Extended Assignment - Multiplication",
+			input:    "x :* 2;",
+			expected: "(x :* 2)",
+		},
+		{
+			name:     "Extended Assignment - Power",
+			input:    "val :** 3;",
+			expected: "(val :** 3)",
+		},
+		{
+			name:     "Extended Assignment - Bitwise OR",
+			input:    "flags :| 1;",
+			expected: "(flags :| 1)",
+		},
+		{
+			name:     "Extended Assignment - Right Shift",
+			input:    "v :>> 2;",
+			expected: "(v :>> 2)",
+		},
+		{
+			name:     "Extended Assignment - Unsigned Right Shift",
+			input:    "v :>>> 2;",
+			expected: "(v :>>> 2)",
+		},
+		// Missing Operator Tests
+		{
+			name:     "Bitwise AND",
+			input:    "a:10; b:2; res: a & b;",
+			expected: "(a : 10)\n(b : 2)\n(res : (a & b))",
+		},
+		{
+			name:     "Bitwise OR",
+			input:    "a:10; b:2; res: a | b;",
+			expected: "(a : 10)\n(b : 2)\n(res : (a | b))",
+		},
+		{
+			name:     "Bitwise XOR",
+			input:    "a:10; b:2; res: a ^ b;",
+			expected: "(a : 10)\n(b : 2)\n(res : (a ^ b))",
+		},
+		{
+			name:     "Bitwise Left Shift",
+			input:    "a:1; c:2; res: a << c;",
+			expected: "(a : 1)\n(c : 2)\n(res : (a << c))",
+		},
+		{
+			name:     "Bitwise Right Shift",
+			input:    "a:8; c:1; res: a >> c;",
+			expected: "(a : 8)\n(c : 1)\n(res : (a >> c))",
+		},
+		{
+			name:     "Comparison Less Equal",
+			input:    "a:1; b:2; res: a <= b;",
+			expected: "(a : 1)\n(b : 2)\n(res : (a <= b))",
+		},
+		{
+			name:     "Comparison Greater Equal",
+			input:    "a:1; b:2; res: a >= b;",
+			expected: "(a : 1)\n(b : 2)\n(res : (a >= b))",
+		},
+		{
+			name:     "Logical NOT",
+			input:    "t:true; res: ! t;",
+			expected: "(t : true)\n(res : (! t))",
+		},
+		{
+			name:  "Flux Operator",
+			input: "a:1; b:{}; res: a -> b;",
+			// Flux (50) < Binding (80), so binding happens first!
+			// a -> b is parsed as (res : a) -> b ?
+			// Wait, binding is Right Assoc.
+			// res : a -> b.
+			// : has BP 80. -> has BP 50.
+			// Parser calls parseExpression(0).
+			// nud(res).
+			// led(:). BP 80.
+			// recurse parseExpression(79) (Right Assoc).
+			// inside: nud(a).
+			// look ahead -> (BP 50).
+			// 50 < 79. Stop!
+			// So val is 'a'.
+			// Result: (res : a).
+			// Loop continues in outer parseExpression.
+			// next op is ->.
+			// led(->, (res:a)).
+			// recurse parseExpression(50).
+			// nud(b).
+			// Result: ((res : a) -> b).
+			// This seems correct according to precedence table!
+			expected: "(a : 1)\n(b : {  })\n((res : a) -> b)",
+		},
+		{
+			name:     "Dispatch Operator",
+			input:    "a:1; b:[]; res: a -< b;",
+			expected: "(a : 1)\n(b : [])\n((res : a) -< b)",
+		},
+		{
+			name:     "Join Operator",
+			input:    "a:[]; b:{}; res: a -<> b;",
+			expected: "(a : [])\n(b : {  })\n((res : a) -<> b)",
+		},
+		{
+			name: "Increment Operator",
+			// Space required?
+			// "++i" lexed as identifier "++i" if no space?
+			// Lexer: isIdentStart('+') -> yes.
+			// isIdentContinue('i') -> yes.
+			// So "++i" is ONE identifier.
+			// And "++i" is undefined.
+			// We must use space! "++ i"
+			input:    "i:0; ++ i;",
+			expected: "(i : 0)\n(++ i)",
+		},
+		{
+			name:     "Decrement Operator",
+			input:    "i:0; -- i;",
+			expected: "(i : 0)\n(-- i)",
+		},
+		{
+			name:     "String Interpolation",
+			input:    `fmt: "Hello $0"; args: ["World"]; res: fmt $ args;`,
+			expected: "(fmt : \"Hello $0\")\n(args : [\"World\"])\n(res : (fmt $ args))",
+		},
+		// Extended Assignments
+		{
+			name:     "Extended Assignment - Subtract",
+			input:    "i:10; i :- 1;",
+			expected: "(i : 10)\n(i :- 1)",
+		},
+		{
+			name:     "Extended Assignment - Divide",
+			input:    "i:10; i :/ 2;",
+			expected: "(i : 10)\n(i :/ 2)",
+		},
+		{
+			name:     "Extended Assignment - Modulo",
+			input:    "i:10; i :% 3;",
+			expected: "(i : 10)\n(i :% 3)",
+		},
+		{
+			name:     "Extended Assignment - Bitwise AND",
+			input:    "f:15; f :& 1;",
+			expected: "(f : 15)\n(f :& 1)",
+		},
+		{
+			name:     "Extended Assignment - Bitwise XOR",
+			input:    "f:15; f :^ 1;",
+			expected: "(f : 15)\n(f :^ 1)",
+		},
+		{
+			name:     "Extended Assignment - Bitwise NOT",
+			input:    "f:0; f :~ 0;",
+			expected: "(f : 0)\n(f :~ 0)",
+		},
+		{
+			name:     "Extended Assignment - Left Shift",
+			input:    "v:1; v :<< 1;",
+			expected: "(v : 1)\n(v :<< 1)",
+		},
 	}
 
 	for _, tt := range tests {

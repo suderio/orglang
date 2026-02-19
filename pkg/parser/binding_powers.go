@@ -110,6 +110,7 @@ func (bt *BindingTable) initDefaults() {
 	// - is dual: Prefix (negation, 900), Infix (sub, 200)
 	bt.RegisterDual("-", 900, 200)
 
+	bt.RegisterInfix("$", 200)
 	bt.RegisterInfix("|", 200)
 	bt.RegisterInfix("^", 200)
 	bt.RegisterInfix("<<", 200)

@@ -306,12 +306,12 @@ To join strings, use interpolation or specialized table operations (to be define
 
 OrgLang supports string interpolation using the `$` operator.
 
-- **Syntax**: `$` is a prefix operator that applies to the string immediately to its right.
-- **Substitution**: It replaces `$0`, `$1`, ... `$N` placeholders in the string with values taken from the **Table** on the left.
+- **Syntax**: `$` is a prefix operator that applies to the string immediately to its left.
+- **Substitution**: It replaces `$0`, `$1`, ... `$N` placeholders in the string with values taken from the **Table** on the right.
 - **Variable Names**: It also supports `$var_name` to lookup named keys in the table.
 
 ```rust
-message : ["World" 42] |> $ "Hello, $0! The answer is $1.";
+message : "Hello, $0! The answer is $1." $ ["World" 42];
 # Result: "Hello, World! The answer is 42."
 ```
 

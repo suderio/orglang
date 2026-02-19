@@ -4,7 +4,6 @@ Summary of pending issues and feature enhancements discovered during sanity test
 
 ## Implementation Gaps (Specification Sync)
 
-- [ ] **Scientific Notation**: Add support for scientific notation (e.g., `1.2e10`) in decimal literals.
 - [ ] **Variable Capture (Closures)**: Implement lexical environment capture for operators (currently they are pure functions of inputs and globals).
 - [ ] **Higher-Order Operators**: Implement `o` (Compose) and `|>` (Partial Application) in parser, codegen, and runtime.
 - [ ] **Short-Circuiting**: Logical `&&` and `||` must not evaluate the right operand if the result is determined by the left.
@@ -26,11 +25,11 @@ Summary of pending issues and feature enhancements discovered during sanity test
   - [ ] Add more built-in resources for file I/O (`@file`), networking (`@net`), and string manipulation.
   - [ ] Implement string interpolation (`$N`, `$var`).
   - [ ] Ensure strings are semantically Tables indexed by integers.
-- [ ] **Atoms in Tables Tests**: Add test cases to verify greedy binding and space-separation logic in table literals (e.g., `[a: 1 + 1]` vs `[a: (1 + 1)]`).
 - [ ] **Short-circuiting Tests**: Add test cases to verify `&&` and `||` short-circuiting (e.g., `false && (1/0)` should not error if short-circuiting works).
 
 ## Future Roadmap (Wishlist)
 
+- [ ] **Scientific Notation**: Add support for scientific notation (e.g., `1.2e10`) in decimal literals.
 - [ ] **Extended Assignment Operators**: Implement `:+`, `:-`, `:*`, `:/` etc., in the parser and runtime.
 - [ ] **Standard Library Expansion**: Add more built-in resources for file I/O, networking, and string manipulation.
 - [ ] **Scheduler: Async IO** — `@stdout.next` currently calls `write()` synchronously. Replace with IO queue submission + fiber yield.

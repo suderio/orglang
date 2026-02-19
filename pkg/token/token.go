@@ -10,14 +10,14 @@ const (
 	EOF     TokenType = "EOF"
 
 	// Literals
-	INTEGER    TokenType = "INTEGER"
-	DECIMAL    TokenType = "DECIMAL"
-	RATIONAL   TokenType = "RATIONAL"
-	STRING     TokenType = "STRING"
-	DOCSTRING  TokenType = "DOCSTRING"
-	RAWSTRING  TokenType = "RAWSTRING"
-	RAWDOC     TokenType = "RAWDOC"
-	BOOLEAN    TokenType = "BOOLEAN"
+	INTEGER   TokenType = "INTEGER"
+	DECIMAL   TokenType = "DECIMAL"
+	RATIONAL  TokenType = "RATIONAL"
+	STRING    TokenType = "STRING"
+	DOCSTRING TokenType = "DOCSTRING"
+	RAWSTRING TokenType = "RAWSTRING"
+	RAWDOC    TokenType = "RAWDOC"
+	BOOLEAN   TokenType = "BOOLEAN"
 
 	// Identifiers and keywords
 	IDENTIFIER TokenType = "IDENTIFIER"
