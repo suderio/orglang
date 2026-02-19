@@ -316,7 +316,7 @@ message : "Hello, $0! The answer is $1." $ ["World" 42];
 ```
 
 > [NOTE]
-> `$` is technically a binary operator where the left operand is the **Context Table** and the right operand is the **Template String**. When used in a pipeline like `table |> $ "template"`, the `|>` injects the table into the left side of `$`.
+> `$` is technically a binary operator where the right operand is the **Context Table** and the left operand is the **Template String**.
 
 #### Numeric literals
 
@@ -568,7 +568,7 @@ Conditional operators allow for selection and branching within expressions witho
 | `.` | Dot Access | Binary | Static/Positional access to a Table's elements or keys. |
 | `?` | Selection Access | Binary | Conditional or dynamic selection from a Table. Evaluation-driven. |
 | `??` | Error Check | Binary | Returns the right operand if the left operand is an **Error**; otherwise, returns the left operand. |
-| `?:` | Elvis Operator | Binary | Returns the right operand if the left operand is **"falsy"** (false, Error, or an empty Table/String); otherwise, returns the left operand. |
+| `?:` | Elvis Operator | Binary | Returns the right operand if the left operand is **"falsy"** (false or an empty Table/String); otherwise, returns the left operand. |
 
 #### Resource operators
 
@@ -576,11 +576,16 @@ Resource operators manage the lifecycle and data flow of [Resources](#resources)
 
 ##### Resource Instantiation (`@`)
 
-The prefix `@` operator is used to instantiate a resource. When applied to a resource name or literal, it executes the resource's `setup` block and returns a **Resource Instance**.
+The infix / prefix `@` operator is used to instantiate a resource. When applied to a resource name or literal, it executes the resource's `setup` block and returns a **Resource Instance**.
+
+The prefix version instantiates with default values, while the infix version allows for overriding them.
 
 ```rust
 # Instantiate stdout
 @stdout
+
+# Instantiate stdout with custom values
+[ buffer_size: 1024 ] @ stdout 
 ```
 
 ##### Data Flow (`->`)
@@ -1114,6 +1119,12 @@ Binary arithmetic operations in OrgLang are designed to be permissive and mathem
 
   - **Decimal**: If either operand is a Decimal, the result is a **Decimal**.
 
+  > [NOTE]
+  > Division of two Decimals can result in recurring decimal, which would be a non terminating operation. To remedy this, such divisions return a Rational with the same precise value.
+
+  ```rust
+  1.0 / 3.0; # 1/3
+
 - **Modulo (`%`)**: Returns the remainder of division. Typically used with Integers.
 
 #### Exponentiation (`**`)
@@ -1235,7 +1246,7 @@ Comparison operators in OrgLang are used to determine the relationship between t
 
 #### Comparison Chaining
 
-OrgLang allows comparison operators to be chained together, such as `x < y < z`.
+OrgLang allows comparison operators to be chained together, such as `x < y < z`, but this does not mean what would be expected in a comparison chain due to the coertion of types.
 
 - **Semantics**: In a chain of comparisons, each operation is evaluated in sequence. However, unlike languages like Python (where `x < y < z` is `(x < y) and (y < z)`), OrgLang's current execution model evaluates the chain left-to-right, and the **result of the entire chain is the result of the last comparison**.
 
@@ -1303,7 +1314,6 @@ The `.` operator provides static or positional access to a Table's elements.
 
 - **Behavior**: It retrieves the value associated with a key from the Table on the left.
 - **Keys**: The key on the right can be an identifier (string key) or an integer index.
-- **Thunk Evaluation**: Accessing a value via `.` forces the evaluation of the thunk stored at that position (if it hasn't been evaluated yet).
 
 ```rust
 data : [10, "x": 20];
@@ -1430,7 +1440,7 @@ The comma is a binary operator that constructs a Table from its operands. It beh
 
   - `[1 2], [3 4]` → `[1 2 [3 4]]`
 
-> [!NOTE]
+> [NOTE]
 > **Left-Associative**: Because the comma is left-associative, `1, 2, 3` is parsed as `(1, 2), 3`.
 >
 > 1. `(1, 2)` becomes `[1 2]`
@@ -1583,7 +1593,7 @@ The `create` operator may be nullary, if default arguments are provided.
 
 > [NOTE]
 > The `next` operator is the only one that is not optional. If it is not provided, the resource will not be able to be used.
-> The `create` operator is optional. If it is not provided, the resource will not be able to be used.
+> The `create` operator is optional.
 > The `destroy` operator is optional. If it is not provided, the resource will not be cleaned up after use.
 > The `@:` operator is the only way to define a resource. This is just syntactic sugar.
 
@@ -1650,19 +1660,20 @@ To use a resource, you must **instantiate** it using the prefix `@` operator. Th
 
 ```rust
 main: {"Hello" -> @Logger} # Push data to it
-> H
-> e
-> l
-> l
-> o
+> LOG: H
+> LOG: e
+> LOG: l
+> LOG: l
+> LOG: o
 ```
 
-In this simple example, the `Logger` resource is instantiated and the string `"Hello"` is pushed to it. The `next` operator is called with `right` being `"Hello"`. The `next` operator then calls the `write` syscall with `1` as the file descriptor and `"LOG: Hello\n"` as the data. The Logger resource is then destroyed since the source (the "Hello" string) is consumed.
+In this simple example, the `Logger` resource is instantiated and the string `"Hello"` is pushed to it. The `next` operator is called with `right` being `"Hello"`. The `next` operator then calls the `write` syscall with `1` as the file descriptor and `"LOG: $0\n"` as the data. The Logger resource is then destroyed since the source (the "Hello" string) is consumed.
 
 The strange output is due to Strings being Tables, so every codepoint is sent to the resource one by one. To achieve what is most likely intended, we should send the string inside a Table.
 
 ```rust
 main: {["Hello"] -> @Logger}
+> LOG: Hello
 ```
 
 > [NOTE]
@@ -1677,6 +1688,9 @@ Resources are primarily used with Flux operators to move data.
 - `-<` (**Dispatch**): load-balances data across multiple resources.
 
 - `-<>` (**Join**): Synchronizes multiple resource streams.
+
+> [NOTE]
+> The flux operators *must* be used inside operator definitions, i.e. `{...}`.
 
 #### Scoped Resources (`@arena`)
 
@@ -1755,7 +1769,7 @@ x : 10 |+| 20; # x = 31
 
 - **Symbol**: The key must be a valid operator symbol string.
 
-- **Arity**: The function receives `left` and `right` arguments for infix operators. For prefix operators, `left` is typically `null` or `error`.
+- **Arity**: The function receives `left` and `right` arguments for infix operators. For prefix operators, `left` is `error`. This is just a convention to avoid accessing a left argument that does not exist.
 
 - **Precedence**: Custom operators currently default to a precedence level of **100**, placing them below standard arithmetic but above assignment.
 
@@ -1796,7 +1810,7 @@ When a module is imported:
 **lib.org**:
 
 ```rust
-helper : { left + 1 };
+helper : { right + 1 };
 add_one : helper;
 constant : 42;
 ```
@@ -1805,7 +1819,7 @@ constant : 42;
 
 ```rust
 lib : "lib.org" @ org;
-x : 10 -> lib.add_one; # x = 11
+x : lib.add_one 10; # x = 11
 y : lib.constant; # y = 42
 ```
 
