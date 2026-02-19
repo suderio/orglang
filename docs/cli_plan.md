@@ -8,10 +8,23 @@ This document outlines the command-line interface for the OrgLang compiler (`org
 - **Subcommand Structure**: similar to `go`, `cargo`, `git`.
 - **Default Action**: `org <file.org>` behaves like `org run <file.org>`.
 
+## Design Philosophy
+
+### **"Distinct, yet Sober"**
+
+The CLI should feel modern and professional, avoiding excessive emojis or neon colors, but using typography and subtle colors to guide the eye.
+
+- **Palette**: Monochromatic base with single accent color (e.g., specific shade of blue or purple) for headers/success.
+- **Typography**: Clean indentation, bold for emphasis, dim for secondary info.
+- **Libraries**:
+  - `github.com/spf13/cobra`: Command structure.
+  - `github.com/charmbracelet/lipgloss`: Styling and layout.
+  - `github.com/muesli/termenv`: Color profile detection.
+
 ## Dependencies
 
-- **Library**: `github.com/spf13/cobra` (Recommended standard for Go CLIs).
-- **Fallback**: Standard `flag` package (if external deps strictly avoided, but Cobra preferred for robustness).
+- **Framework**: `github.com/spf13/cobra`
+- **Styling**: `github.com/charmbracelet/lipgloss`
 
 ## Commands
 
