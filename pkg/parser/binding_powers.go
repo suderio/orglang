@@ -142,6 +142,22 @@ func (bt *BindingTable) initDefaults() {
 	bt.RegisterInfix("??", 125)
 	// Conditional (cond ? table)
 	bt.RegisterInfix("?", 100)
+
+	// Extended Assignment (Right Assoc, same level as :)
+	bt.RegisterInfixRightAssoc(":+", 80)
+	bt.RegisterInfixRightAssoc(":-", 80)
+	bt.RegisterInfixRightAssoc(":*", 80)
+	bt.RegisterInfixRightAssoc(":/", 80)
+	bt.RegisterInfixRightAssoc(":%", 80)
+	bt.RegisterInfixRightAssoc(":**", 80)
+	bt.RegisterInfixRightAssoc(":&", 80)
+	bt.RegisterInfixRightAssoc(":^", 80)
+	bt.RegisterInfixRightAssoc(":|", 80)
+	bt.RegisterInfixRightAssoc(":~", 80)
+	bt.RegisterInfixRightAssoc(":<<", 80)
+	bt.RegisterInfixRightAssoc(":>>", 80)
+	bt.RegisterInfixRightAssoc(":>>>", 80)
+
 	// Dot
 	bt.RegisterInfix(".", 800)
 

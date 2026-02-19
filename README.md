@@ -634,7 +634,7 @@ In OrgLang, assignment is strictly an operation that binds a value to a name wit
 | `:` | Binding | Binds the result of the right expression to the name specified on the left. |
 
 > [NOTE]
-> **Extended Assignment**: OrgLang reserves the following operators for extended assignment (modification of existing bindings). These are **not yet implemented** in the current runtime.
+> **Extended Assignment**: OrgLang supports the following extended assignment operators for in-place modification:
 
 | Operator | Description | Example |
 | :--- | :--- | :--- |
@@ -643,10 +643,10 @@ In OrgLang, assignment is strictly an operation that binds a value to a name wit
 | `:*` | Multiplication and Assignment | `x :* 3` |
 | `:/` | Division and Assignment | `x :/ 4` |
 | `:%` | Modulo and Assignment | `x :% 5` |
-| `++` | Increment and Assignment | `++ x` |
-| `--` | Decrement and Assignment | `-- x` |
+| `:**` | Power and Assignment | `x :** 2` |
 | `:>>` | Right Shift and Assignment | `x :>> 5` |
 | `:<<` | Left Shift and Assignment | `x :<< 5` |
+| `:>>>` | Unsigned Right Shift and Assignment | `x :>>> 5` |
 | `:&` | AND and Assignment | `x :& y` |
 | `:^` | XOR and Assignment | `x :^ y` |
 | `:\|` | OR and Assignment | `x :\| y` |

@@ -2,8 +2,6 @@
 
 Summary of pending issues and feature enhancements discovered during sanity test refinements.
 
-## Refinement Required
-
 ## Implementation Gaps (Specification Sync)
 
 - [ ] **Scientific Notation**: Add support for scientific notation (e.g., `1.2e10`) in decimal literals.

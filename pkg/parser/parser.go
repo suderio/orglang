@@ -193,6 +193,11 @@ func (p *Parser) nudIdentifier(t token.Token) ast.Expression {
 		if p.curToken.Type == token.COLON || p.curToken.Type == token.AT_COLON {
 			return &ast.Name{Value: name}
 		}
+		// Allow if extended assignment (e.g. x :+ 1)
+		// We check if the current token is an identifier starting with ":"
+		if p.curToken.Type == token.IDENTIFIER && strings.HasPrefix(p.curToken.Literal, ":") {
+			return &ast.Name{Value: name}
+		}
 		if name == "left" || name == "right" || name == "this" {
 			return &ast.Name{Value: name}
 		}
@@ -205,9 +210,9 @@ func (p *Parser) nudIdentifier(t token.Token) ast.Expression {
 func (p *Parser) led(t token.Token, left ast.Expression) ast.Expression {
 	switch t.Type {
 	case token.COLON:
-		return p.ledBinding(left, false)
+		return p.ledBinding(left, false, ":")
 	case token.AT_COLON:
-		return p.ledBinding(left, true)
+		return p.ledBinding(left, true, ":")
 	case token.DOT:
 		right := p.parseExpression(p.getBindingPower(t))
 		return &ast.DotExpr{Left: left, Key: right}
@@ -225,6 +230,11 @@ func (p *Parser) led(t token.Token, left ast.Expression) ast.Expression {
 			return &ast.InfixExpr{Left: left, Op: "o", Right: p.parseAtom()}
 		}
 
+		// Check for extended assignment operators
+		if strings.HasPrefix(t.Literal, ":") && len(t.Literal) > 1 {
+			return p.ledBinding(left, false, t.Literal)
+		}
+
 		entry, _ := p.bpTable.Lookup(t.Literal)
 		rbp := entry.RBP
 		right := p.parseExpression(rbp)
@@ -239,22 +249,26 @@ func (p *Parser) led(t token.Token, left ast.Expression) ast.Expression {
 	return left
 }
 
-func (p *Parser) ledBinding(left ast.Expression, isResource bool) ast.Expression {
+func (p *Parser) ledBinding(left ast.Expression, isResource bool, op string) ast.Expression {
 	// Colon is Right-associative. RBP = 79.
 	val := p.parseExpression(79)
 
 	if name, ok := left.(*ast.Name); ok {
-		if funcLit, ok := val.(*ast.FunctionLiteral); ok {
-			p.registerBinding(name.Value, funcLit, isResource)
-		} else {
-			p.bpTable.RegisterValue(name.Value)
+		// Only register if it's a simple binding (:), not extended assignment (:+ etc)
+		// Extended assignment implies the binding already exists (mutation).
+		if op == ":" {
+			if funcLit, ok := val.(*ast.FunctionLiteral); ok {
+				p.registerBinding(name.Value, funcLit, isResource)
+			} else {
+				p.bpTable.RegisterValue(name.Value)
+			}
 		}
 	}
 
 	if isResource {
 		return &ast.ResourceDef{Name: left, Value: val}
 	}
-	return &ast.BindingExpr{Name: left, Value: val}
+	return &ast.BindingExpr{Name: left, Operator: op, Value: val}
 }
 
 func (p *Parser) registerBinding(name string, fl *ast.FunctionLiteral, isRes bool) {

@@ -115,6 +115,37 @@ func TestParser_Examples(t *testing.T) {
 			// RBP (601) > LBP (600) implies Left Associativity in this Pratt implementation.
 			expected: "(pow_op : 600{ (left ** right) }601)\n(res : ((2 pow_op 3) pow_op 2))",
 		},
+		// Extended Assignments
+		{
+			name:     "Extended Assignment - Addition",
+			input:    "count :+ 1;",
+			expected: "(count :+ 1)",
+		},
+		{
+			name:     "Extended Assignment - Multiplication",
+			input:    "x :* 2;",
+			expected: "(x :* 2)",
+		},
+		{
+			name:     "Extended Assignment - Power",
+			input:    "val :** 3;",
+			expected: "(val :** 3)",
+		},
+		{
+			name:     "Extended Assignment - Bitwise OR",
+			input:    "flags :| 1;",
+			expected: "(flags :| 1)",
+		},
+		{
+			name:     "Extended Assignment - Right Shift",
+			input:    "v :>> 2;",
+			expected: "(v :>> 2)",
+		},
+		{
+			name:     "Extended Assignment - Unsigned Right Shift",
+			input:    "v :>>> 2;",
+			expected: "(v :>>> 2)",
+		},
 	}
 
 	for _, tt := range tests {

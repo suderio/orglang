@@ -545,15 +545,30 @@ func (l *Lexer) readColon(startLine, startCol int) token.Token {
 	if l.pos < len(l.input) {
 		r, _ := l.peekRune()
 		switch r {
-		case '+', '-', '*', '/', '%', '&', '^', '|', '~':
+		case '+', '-', '/', '%', '&', '^', '|', '~':
 			l.readRune()
 			return token.Token{Type: token.IDENTIFIER, Literal: ":" + string(r), Line: startLine, Column: startCol}
+		case '*':
+			// Check for :** (Power assignment)
+			l.readRune()
+			r2, _ := l.peekRune()
+			if r2 == '*' {
+				l.readRune()
+				return token.Token{Type: token.IDENTIFIER, Literal: ":**", Line: startLine, Column: startCol}
+			}
+			return token.Token{Type: token.IDENTIFIER, Literal: ":*", Line: startLine, Column: startCol}
 		case '>':
-			// Check for :>>
+			// Check for :>> and :>>>
 			l.readRune()
 			r2, _ := l.peekRune()
 			if r2 == '>' {
 				l.readRune()
+				// Check for :>>>
+				r3, _ := l.peekRune()
+				if r3 == '>' {
+					l.readRune()
+					return token.Token{Type: token.IDENTIFIER, Literal: ":>>>", Line: startLine, Column: startCol}
+				}
 				return token.Token{Type: token.IDENTIFIER, Literal: ":>>", Line: startLine, Column: startCol}
 			}
 			// Just :> (not a defined operator, but emit as identifier)

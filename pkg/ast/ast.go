@@ -182,14 +182,19 @@ func (de *DotExpr) String() string {
 func (de *DotExpr) expressionNode() {}
 func (de *DotExpr) statementNode()  {}
 
-// BindingExpr represents name : value
+// BindingExpr represents name : value or name :+ value
 type BindingExpr struct {
-	Name  Expression
-	Value Expression
+	Name     Expression
+	Operator string // ":" by default, or ":+", ":-", etc.
+	Value    Expression
 }
 
 func (be *BindingExpr) String() string {
-	return fmt.Sprintf("(%s : %s)", be.Name.String(), be.Value.String())
+	op := be.Operator
+	if op == "" {
+		op = ":"
+	}
+	return fmt.Sprintf("(%s %s %s)", be.Name.String(), op, be.Value.String())
 }
 func (be *BindingExpr) expressionNode() {}
 func (be *BindingExpr) statementNode()  {}
