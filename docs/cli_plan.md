@@ -150,6 +150,48 @@ Removes build artifacts.
 
 **Status**: TBD
 
+### Versioning Strategy
+
+To synchronize the CLI version with Git tags (like GoReleaser), we have two main approaches:
+
+#### 1. LDFLAGS Injection (Recommended Standard)
+
+This is the standard Go way. Variables in `pkg/cmd/version.go` are overwritten at build time.
+
+- **Source of Truth**: Git Tags (`v1.0.0`).
+- **Mechanism**: `go build -ldflags "-X orglang/pkg/cmd.Version=$(git describe --tags)"`
+- **GoReleaser Config**:
+
+  ```yaml
+  builds:
+    - ldflags:
+      - -X orglang/pkg/cmd.Version={{.Version}}
+      - -X orglang/pkg/cmd.Commit={{.Commit}}
+      - -X orglang/pkg/cmd.BuildDate={{.Date}}
+  ```
+
+#### 2. Embedded Version File (Alternative)
+
+If a file-based source of truth is preferred (e.g. `VERSION` file in root).
+
+- **Source of Truth**: `VERSION` file.
+- **Mechanism**:
+  - Create `VERSION` file containing `1.0.0`.
+  - In `pkg/cmd/version.go`:
+
+    ```go
+    //go:embed ../../VERSION
+    var versionFile string
+    var Version = strings.TrimSpace(versionFile)
+    ```
+
+- **Pros**: Easy to read programmatically without build flags.
+- **Cons**: Requires manual bumping or extra tooling to sync with Git tags.
+
+**Recommendation**: Use **LDFLAGS** as it guarantees the binary version matches the git tag/commit exactly without manual file management.
+
+**Selected Strategy**: Option 1 (LDFLAGS Injection).
+
 ## Implementation Phase 1
 
 Focus on skeleton and `version`/`help`.

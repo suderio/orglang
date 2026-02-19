@@ -16,6 +16,9 @@ builds:
     binary: org
     ldflags:
       - -s -w
+      - -X orglang/pkg/cmd.Version={{.Version}}
+      - -X orglang/pkg/cmd.Commit={{.Commit}}
+      - -X orglang/pkg/cmd.BuildDate={{.Date}}
 
   - id: windows
     env:
@@ -29,6 +32,9 @@ builds:
     binary: org
     ldflags:
       - -s -w
+      - -X orglang/pkg/cmd.Version={{.Version}}
+      - -X orglang/pkg/cmd.Commit={{.Commit}}
+      - -X orglang/pkg/cmd.BuildDate={{.Date}}
 
 archives:
   - id: nix
